@@ -41,7 +41,8 @@ public class CameraController : MonoBehaviour {
       upTranslation -= upTranslationChange;
     }
 
-    transform.Translate(rightTranslation, upTranslation, forwardTranslation);
+    transform.Translate(rightTranslation, 0, forwardTranslation);
+    transform.Translate(0, upTranslation, 0, Space.World);
 
     // Handle camera rotation.
     if (Cursor.lockState == CursorLockMode.Locked) {

@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using UnityEngine;
 
 struct GridPoint {
@@ -76,16 +76,23 @@ public class MetaballRenderer : MonoBehaviour {
   void Update() {
     UpdateGridValues();
 
-    List<Vector3> vertices = new List<Vector3>();
+    Dictionary<Vector3, int> vertices = new Dictionary<Vector3, int>();
     List<int> triangles = new List<int>();
 
     MarchingCubes(vertices, triangles);
 
+    // Sort vertices by index.
+    KeyValuePair<Vector3, int>[] vertexIndexPairs = vertices.OrderBy(x => x.Value).ToArray();
+    Vector3[] orderedVertices = new Vector3[vertexIndexPairs.Length];
+    for (int i = 0; i < orderedVertices.Length; ++i) {
+      orderedVertices[i] = vertexIndexPairs[i].Key;
+    }
+
     Mesh mesh = new Mesh();
     meshFilter.mesh = mesh;
     mesh.Clear();
-    mesh.vertices = vertices.ToArray(); // OPTIMIZATION 1 POSSIBLE
-    mesh.triangles = triangles.ToArray(); // OPTIMIZATION 1 POSSIBLE
+    mesh.vertices = orderedVertices;
+    mesh.triangles = triangles.ToArray();
     mesh.RecalculateNormals();
     mesh.RecalculateBounds();
   }
@@ -133,7 +140,7 @@ public class MetaballRenderer : MonoBehaviour {
   }
 
   // Begins the marching cubes algorithm.
-  private void MarchingCubes(List<Vector3> vertices, List<int> triangles) {
+  private void MarchingCubes(Dictionary<Vector3, int> vertices, List<int> triangles) {
     // Iterate through grid points, skip last one every time to account for grid cells.
     for (int i = 0; i < grid.GetLength(0)-1; ++i) {
       for (int j = 0; j < grid.GetLength(1)-1; ++j) {
@@ -144,7 +151,7 @@ public class MetaballRenderer : MonoBehaviour {
     }
   }
 
-  private void Polygonize(GridCell cell, List<Vector3> vertices, List<int> triangles) {
+  private void Polygonize(GridCell cell, Dictionary<Vector3, int> vertices, List<int> triangles) {
     // Determine index into edge table.
     int cubeIndex = 0;
     for (int i = 0; i < cell.values.Length; i++) {
@@ -191,22 +198,30 @@ public class MetaballRenderer : MonoBehaviour {
     vertexList[11] =
     InterpolateVertex(cell.points[3], cell.points[7], cell.values[3], cell.values[7]);
 
-    // Add vertices and triangles. OPTIMIZATION 1 POSSIBLE
+    // Add vertices and triangles.
     int numVertices = vertices.Count; // The next vertex index.
     for (int i = 0; MarchingCubesTables.triTable[cubeIndex, i] != -1; i += 3) {
+      int[] triangle = new int[3];
       // Create vertices and add to mesh vertex list.
-      vertices.Add(vertexList[MarchingCubesTables.triTable[cubeIndex, i]]);
-      vertices.Add(vertexList[MarchingCubesTables.triTable[cubeIndex, i+1]]);
-      vertices.Add(vertexList[MarchingCubesTables.triTable[cubeIndex, i+2]]);
-      // Add the indices for the newly created vertices to mesh triangles.
-      // The winding order in the algorithm originally is counter-clockwise, but
-      // Unity requires clockwise.
-      triangles.Add(numVertices);
-      numVertices += 2;
-      triangles.Add(numVertices);
-      numVertices -= 1;
-      triangles.Add(numVertices);
-      numVertices += 2;
+      for (int j = 0; j < 3; ++j) {
+        Vector3 vertex = vertexList[MarchingCubesTables.triTable[cubeIndex, i+j]];
+        // Handle duplicate vertex.
+        if (vertices.ContainsKey(vertex)) {
+          // Add vertex index to triangle.
+          triangle[j] = vertices[vertex];
+          // No need to add duplicate vertex to vertices.
+        } else { // Not a duplicate.
+          // Add next vertex index to triangle.
+          triangle[j] = vertices.Count;
+          // Add new vertex to vertices.
+          vertices.Add(vertex, vertices.Count);
+        }
+      }
+      // Add the indices for the vertices to mesh triangles. The winding order in
+      // the algorithm originally is counter-clockwise, but Unity requires clockwise.
+      triangles.Add(triangle[0]);
+      triangles.Add(triangle[2]);
+      triangles.Add(triangle[1]);
     }
   }
 

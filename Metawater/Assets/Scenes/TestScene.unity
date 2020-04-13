@@ -346,7 +346,7 @@ MonoBehaviour:
   boundingBox:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 10, y: 10, z: 10}
-  resolution: 10
+  resolution: 20
   threshold: 3
   showDebugBalls: 1
 --- !u!4 &1235628156

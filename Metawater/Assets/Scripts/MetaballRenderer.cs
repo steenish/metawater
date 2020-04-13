@@ -44,8 +44,8 @@ public class MetaballRenderer : MonoBehaviour {
   private Metaball[] metaballs;
 
   void Start() {
-    //ConstructGrid();
     meshFilter = GetComponent<MeshFilter>();
+    ConstructGrid();
     // DEBUG START
     GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
     Mesh sphereMesh = sphere.GetComponent<MeshFilter>().mesh;
@@ -64,7 +64,6 @@ public class MetaballRenderer : MonoBehaviour {
       metaballs[i] = metaballObjects[i].AddComponent<Metaball>();
       metaballs[i].radius = radius;
       metaballs[i].transform.position = new Vector3(x, y, z);
-      // metaballObjects[i].transform.position = boundingBox.center;
 
       if (showDebugBalls) {
         metaballObjects[i].AddComponent<MeshFilter>().mesh = sphereMesh;
@@ -75,6 +74,8 @@ public class MetaballRenderer : MonoBehaviour {
   }
 
   void Update() {
+    UpdateGridValues();
+
     List<Vector3> vertices = new List<Vector3>();
     List<int> triangles = new List<int>();
 
@@ -102,12 +103,12 @@ public class MetaballRenderer : MonoBehaviour {
 
     grid = new GridPoint[pointsX, pointsY, pointsZ];
 
-    for (int indexX = 0; indexX < pointsX; ++indexX) {
-      for (int indexY = 0; indexY < pointsY; ++indexY) {
-        for (int indexZ = 0; indexZ < pointsZ; ++indexZ) {
+    for (int xIndex = 0; xIndex < pointsX; ++xIndex) {
+      for (int yIndex = 0; yIndex < pointsY; ++yIndex) {
+        for (int zIndex = 0; zIndex < pointsZ; ++zIndex) {
           Vector3 position = boundingBox.min +
-                             new Vector3(indexX*increments.x, indexY*increments.y, indexZ*increments.z);
-          grid[indexX, indexY, indexZ] = new GridPoint(position, 0.0f);
+                             new Vector3(xIndex*increments.x, yIndex*increments.y, zIndex*increments.z);
+          grid[xIndex, yIndex, zIndex] = new GridPoint(position, 0.0f);
         }
       }
     }
@@ -133,15 +134,11 @@ public class MetaballRenderer : MonoBehaviour {
 
   // Begins the marching cubes algorithm.
   private void MarchingCubes(List<Vector3> vertices, List<int> triangles) {
-    Vector3 increments = new Vector3(
-    (boundingBox.max.x - boundingBox.min.x) / resolution,
-    (boundingBox.max.y - boundingBox.min.y) / resolution,
-    (boundingBox.max.z - boundingBox.min.z) / resolution);
-
-    for (float x = boundingBox.min.x; x < boundingBox.max.x - increments.x; x += increments.x) {
-      for (float y = boundingBox.min.y; y < boundingBox.max.y - increments.y; y += increments.y) {
-        for (float z = boundingBox.min.z; z < boundingBox.max.z - increments.z; z += increments.z) {
-          Polygonize(ConstructGridCell(new Vector3(x, y, z), increments), vertices, triangles);
+    // Iterate through grid points, skip last one every time to account for grid cells.
+    for (int i = 0; i < grid.GetLength(0)-1; ++i) {
+      for (int j = 0; j < grid.GetLength(1)-1; ++j) {
+        for (int k = 0; k < grid.GetLength(2)-1; ++k) {
+          Polygonize(ConstructGridCell(i, j, k), vertices, triangles);
         }
       }
     }
@@ -213,28 +210,30 @@ public class MetaballRenderer : MonoBehaviour {
     }
   }
 
-  private GridCell ConstructGridCell(Vector3 minPosition, Vector3 increments) {
-    // Create the point positions, indexed as in the paper.
+  // Create a grid cell structure from the grid point at the given index.
+  private GridCell ConstructGridCell(int xIndex, int yIndex, int zIndex) {
+    // Get the point positions from the grid, indexed as in the paper.
     Vector3[] positions = {
-      minPosition,
-      minPosition + new Vector3(0, 0, increments.z),
-      minPosition + new Vector3(increments.x, 0, increments.z),
-      minPosition + new Vector3(increments.x, 0, 0),
-      minPosition + new Vector3(0, increments.y, 0),
-      minPosition + new Vector3(0, increments.y, increments.z),
-      minPosition + new Vector3(increments.x, increments.y, increments.z),
-      minPosition + new Vector3(increments.x, increments.y, 0),
+      grid[xIndex, yIndex, zIndex].position,
+      grid[xIndex, yIndex, zIndex+1].position,
+      grid[xIndex+1, yIndex, zIndex+1].position,
+      grid[xIndex+1, yIndex, zIndex].position,
+      grid[xIndex, yIndex+1, zIndex].position,
+      grid[xIndex, yIndex+1, zIndex+1].position,
+      grid[xIndex+1, yIndex+1, zIndex+1].position,
+      grid[xIndex+1, yIndex+1, zIndex].position
     };
 
-    float[] values = new float[8];
-
-    for (int i = 0; i < positions.Length; ++i) { // OPTIMIZATION 2 POSSIBLE
-      float pointValue = 0;
-      foreach (Metaball ball in metaballs) {
-        pointValue += ball.Falloff(positions[i]);
-      }
-      values[i] = pointValue;
-    }
+    float[] values = {
+      grid[xIndex, yIndex, zIndex].value,
+      grid[xIndex, yIndex, zIndex+1].value,
+      grid[xIndex+1, yIndex, zIndex+1].value,
+      grid[xIndex+1, yIndex, zIndex].value,
+      grid[xIndex, yIndex+1, zIndex].value,
+      grid[xIndex, yIndex+1, zIndex+1].value,
+      grid[xIndex+1, yIndex+1, zIndex+1].value,
+      grid[xIndex+1, yIndex+1, zIndex].value
+    };
 
     return new GridCell(positions, values);
   }

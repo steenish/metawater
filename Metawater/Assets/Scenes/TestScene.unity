@@ -347,8 +347,8 @@ MonoBehaviour:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 10, y: 10, z: 10}
   resolution: 10
-  threshold: 0.5
-  knob: {fileID: 7608936349943191033, guid: 4e378795351f55248aad1b39d688cc60, type: 3}
+  threshold: 3
+  showDebugBalls: 1
 --- !u!4 &1235628156
 Transform:
   m_ObjectHideFlags: 0

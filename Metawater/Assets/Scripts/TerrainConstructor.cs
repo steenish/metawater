@@ -12,6 +12,8 @@ public class TerrainConstructor : MonoBehaviour {
   [SerializeField]
   private float heightScale = 1.0f;
 
+  public Bounds terrainBounds { get; private set; }
+
   private int height;
   private int width;
   private int[] triangles;
@@ -19,7 +21,7 @@ public class TerrainConstructor : MonoBehaviour {
   private Vector3[] vertices;
   private Vector3 origin;
 
-  void Start() {
+  void Awake() {
     // Initialize and set mesh.
     mesh = new Mesh();
     GetComponent<MeshFilter>().mesh = mesh;
@@ -44,6 +46,15 @@ public class TerrainConstructor : MonoBehaviour {
         vertices[i*width+j] = new Vector3(origin.x + (j*areaScale), origin.y + (color*heightScale), origin.z + (i*areaScale));
       }
     }
+
+    // Construct bounds.
+    float boundsHeight = 10.0f;
+    Vector3 center = new Vector3(origin.x + width*areaScale / 2, origin.y + boundsHeight / 2, origin.z + height*areaScale / 2);
+    Vector3 min = vertices[0];
+    Vector3 max = vertices[height*width - 1];
+    terrainBounds = new Bounds(center, new Vector3(Mathf.Abs(max.x-min.x),
+                                                   boundsHeight,
+                                                   Mathf.Abs(max.z-min.z)));
 
     // Construct triangles.
     // Size of triangles array:

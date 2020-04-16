@@ -5,6 +5,8 @@ using UnityEngine;
 public class Metaball : MonoBehaviour {
 
   public float radius { get; set; }
+  public Vector3 velocity { get; set; }
+  public Vector3 lastPosition { get; set; }
 
   // Determines the contribution from this metaball to the metaball system.
   public float Falloff(Vector3 point) {

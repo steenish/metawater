@@ -25,88 +25,84 @@ struct GridCell {
 
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
+[RequireComponent(typeof(PhysicsController))]
 public class MetaballRenderer : MonoBehaviour {
 
   [SerializeField]
-  private Bounds boundingBox;
-  [SerializeField]
-  [Range(1,30)]
+  [Range(0.1f, 3.0f)]
   private float resolution = 10;
   [SerializeField]
-  [Range(0, 10)]
+  [Range(0.0f, 10.0f)]
   private float threshold = 2;
   [SerializeField]
-  private bool showDebugBalls = false; // DEBUG
+  private Vector3 boundsOffset = Vector3.zero;
+  [SerializeField]
+  private float updateGridTimeThreshold = 1.0f;
+  [SerializeField]
+  private float renderMetaballsTimeThreshold = 0.5f;
 
+  private Bounds boundingBox;
+  private float updateGridTimer = Mathf.Infinity;
+  private float renderMetaballsTimer = 0.0f;
   private GridPoint[,,] grid;
-  private GameObject[] metaballObjects; // DEBUG
   private MeshFilter meshFilter;
-  private Metaball[] metaballs;
+  private PhysicsController physicsController;
 
-  void Start() {
+  void Awake() {
     meshFilter = GetComponent<MeshFilter>();
-    ConstructGrid();
-    // DEBUG START
-    GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-    Mesh sphereMesh = sphere.GetComponent<MeshFilter>().mesh;
-    Material sphereMaterial = sphere.GetComponent<MeshRenderer>().sharedMaterial;
-    Destroy(sphere);
-    int numBalls = 10;
-    metaballObjects = new GameObject[numBalls];
-    metaballs = new Metaball[numBalls];
-    for (int i = 0; i < numBalls; ++i) {
-      float radius = 2.0f;
-      float x = Random.Range(boundingBox.min.x + radius, boundingBox.max.x - radius);
-      float y = Random.Range(boundingBox.min.y + radius, boundingBox.max.y - radius);
-      float z = Random.Range(boundingBox.min.z + radius, boundingBox.max.z - radius);
-
-      metaballObjects[i] = new GameObject("Metaball"+(i+1));
-      metaballs[i] = metaballObjects[i].AddComponent<Metaball>();
-      metaballs[i].radius = radius;
-      metaballs[i].transform.position = new Vector3(x, y, z);
-
-      if (showDebugBalls) {
-        metaballObjects[i].AddComponent<MeshFilter>().mesh = sphereMesh;
-        metaballObjects[i].AddComponent<MeshRenderer>().sharedMaterial = sphereMaterial;
-      }
-    }
-    // DEBUG END
+    physicsController = GetComponent<PhysicsController>();
+    // Set placeholder bounding box.
+    boundingBox = new Bounds(transform.position, transform.localScale);
   }
 
   void Update() {
-    UpdateGridValues();
-
-    Dictionary<Vector3, int> vertices = new Dictionary<Vector3, int>();
-    List<int> triangles = new List<int>();
-
-    MarchingCubes(vertices, triangles);
-
-    // Sort vertices by index.
-    KeyValuePair<Vector3, int>[] vertexIndexPairs = vertices.OrderBy(x => x.Value).ToArray();
-    Vector3[] orderedVertices = new Vector3[vertexIndexPairs.Length];
-    for (int i = 0; i < orderedVertices.Length; ++i) {
-      orderedVertices[i] = vertexIndexPairs[i].Key;
+    // Check if grid should be updated.
+    if (updateGridTimer > updateGridTimeThreshold) {
+      updateGridTimer = 0.0f;
+      UpdateBounds();
+      ConstructGrid();
+    } else {
+      updateGridTimer += Time.deltaTime;
     }
 
-    Mesh mesh = new Mesh();
-    meshFilter.mesh = mesh;
-    mesh.Clear();
-    mesh.vertices = orderedVertices;
-    mesh.triangles = triangles.ToArray();
-    mesh.RecalculateNormals();
-    mesh.RecalculateBounds();
+    // Check if metaballs should be rerendered.
+    if (renderMetaballsTimer > renderMetaballsTimeThreshold) {
+      renderMetaballsTimer = 0.0f;
+      UpdateGridValues();
+
+      Dictionary<Vector3, int> vertices = new Dictionary<Vector3, int>();
+      List<int> triangles = new List<int>();
+
+      MarchingCubes(vertices, triangles);
+
+      // Sort vertices by index.
+      KeyValuePair<Vector3, int>[] vertexIndexPairs = vertices.OrderBy(x => x.Value).ToArray();
+      Vector3[] orderedVertices = new Vector3[vertexIndexPairs.Length];
+      for (int i = 0; i < orderedVertices.Length; ++i) {
+        orderedVertices[i] = vertexIndexPairs[i].Key;
+      }
+
+      Mesh mesh = new Mesh();
+      meshFilter.mesh = mesh;
+      mesh.Clear();
+      mesh.vertices = orderedVertices;
+      mesh.triangles = triangles.ToArray();
+      mesh.RecalculateNormals();
+      mesh.RecalculateBounds();
+    } else {
+      renderMetaballsTimer += Time.deltaTime;
+    }
   }
 
   // Constructs the uniform grid and assigns the 3D positions for each grid point.
   private void ConstructGrid() {
-    Vector3 increments = new Vector3(
-    (boundingBox.max.x - boundingBox.min.x) / resolution,
-    (boundingBox.max.y - boundingBox.min.y) / resolution,
-    (boundingBox.max.z - boundingBox.min.z) / resolution);
+    // Have the same increment in all directions, so all grid cells are cubic.
+    float increment = 1 / resolution;
 
-    int pointsX = (int) ((boundingBox.max.x - boundingBox.min.x) / increments.x);
-    int pointsY = (int) ((boundingBox.max.y - boundingBox.min.y) / increments.y);
-    int pointsZ = (int) ((boundingBox.max.z - boundingBox.min.z) / increments.z);
+    // Varying amount of grid points in all directions.
+    int pointsX = (int) ((boundingBox.max.x - boundingBox.min.x) / increment);
+    int pointsY = (int) ((boundingBox.max.y - boundingBox.min.y) / increment);
+    int pointsZ = (int) ((boundingBox.max.z - boundingBox.min.z) / increment);
 
     grid = new GridPoint[pointsX, pointsY, pointsZ];
 
@@ -114,11 +110,38 @@ public class MetaballRenderer : MonoBehaviour {
       for (int yIndex = 0; yIndex < pointsY; ++yIndex) {
         for (int zIndex = 0; zIndex < pointsZ; ++zIndex) {
           Vector3 position = boundingBox.min +
-                             new Vector3(xIndex*increments.x, yIndex*increments.y, zIndex*increments.z);
+                             new Vector3(xIndex*increment, yIndex*increment, zIndex*increment);
           grid[xIndex, yIndex, zIndex] = new GridPoint(position, 0.0f);
         }
       }
     }
+  }
+
+  private void UpdateBounds() {
+    // Find min and max.
+    Vector3 currentMin = Vector3.positiveInfinity;
+    Vector3 currentMax = Vector3.negativeInfinity;
+    Metaball[] metaballs = physicsController.metaballs;
+    for (int i = 1; i < metaballs.Length; ++i) {
+      Vector3 candidate = metaballs[i].transform.position;
+
+      // Check if candidate position is lesser or greater than current min or max.
+      if (candidate.x <= currentMin.x) currentMin.x = candidate.x;
+      if (candidate.y <= currentMin.y) currentMin.y = candidate.y;
+      if (candidate.z <= currentMin.z) currentMin.z = candidate.z;
+
+      if (candidate.x >= currentMax.x) currentMax.x = candidate.x;
+      if (candidate.y >= currentMax.y) currentMax.y = candidate.y;
+      if (candidate.z >= currentMax.z) currentMax.z = candidate.z;
+    }
+    currentMin -= boundsOffset;
+    currentMax += boundsOffset;
+
+    // Create new zero-size bounds in the center of the balls.
+    boundingBox = new Bounds(Vector3.Lerp(currentMin, currentMax, 0.5f), Vector3.zero);
+    // Make bounds grow to encapsulate min and max.
+    boundingBox.Encapsulate(currentMin);
+    boundingBox.Encapsulate(currentMax);
   }
 
   // Updates the value in each grid point according to metaball positions.
@@ -130,6 +153,7 @@ public class MetaballRenderer : MonoBehaviour {
         for (int k = 0; k < grid.GetLength(2); ++k) {
           Vector3 position = grid[i,j,k].position;
           float pointValue = 0;
+          Metaball[] metaballs = physicsController.metaballs;
           foreach (Metaball ball in metaballs) {
             pointValue += ball.Falloff(position);
           }

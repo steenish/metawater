@@ -5,9 +5,13 @@ using UnityEngine;
 public class PhysicsController : MonoBehaviour {
 
   [SerializeField]
-  private float gravityAcceleration = 9.8f;
+  private float gravityAcceleration = 9.82f;
   [SerializeField]
-  private int numBalls = 10;
+  [Range(0.0f, 1.0f)]
+  private float groundDamping = 0.7f;
+  [SerializeField]
+  [Range(2, 10)]
+  private int numBalls = 2;
   [SerializeField]
   private float meanRadius = 2.0f;
   [SerializeField]
@@ -25,7 +29,7 @@ public class PhysicsController : MonoBehaviour {
     GameObject terrain = GameObject.FindWithTag("Terrain");
     terrainMesh = terrain.GetComponent<MeshFilter>().mesh;
     terrainBounds = terrain.GetComponent<TerrainConstructor>().terrainBounds;
-    // Create AABB tree. TODO
+    // Create AABB tree. TODO optimize
 
     // Instantiate metaballs.
     metaballs = new Metaball[numBalls];
@@ -51,12 +55,44 @@ public class PhysicsController : MonoBehaviour {
     }
   }
 
-  void FixedUpdate() {
-    //foreach (Metaball ball in metaballs) {
+  // Since these physics are independent from Unity's doing physics in Update
+  // as opposed to FixedUpdate is not a problem.
+  void Update() {
+    Vector3[] vertices = terrainMesh.vertices;
+    int[] triangles = terrainMesh.triangles;
+    foreach (Metaball ball in metaballs) {
       // Update velocity according to acceleration.
+      ball.velocity += Vector3.down * gravityAcceleration * Time.deltaTime;
+
       // Update position according to velocity.
+      ball.lastPosition = ball.transform.position;
+      ball.transform.position += ball.velocity * Time.deltaTime;
+
       // Check for intersection.
-      // If intersection, compute new position and velocity.
-    //}
+      // Iterate through all triangles. TODO optimize
+      for (int i = 0; i < triangles.Length; i += 3) {
+        // Get triangle vertices.
+        Vector3[] triangle = new Vector3[] { vertices[triangles[i]],
+                                             vertices[triangles[i+1]],
+                                             vertices[triangles[i+2]] };
+        // Test for intersection.
+        Vector3 rayDirection = ball.transform.position - ball.lastPosition;
+        float distance = rayDirection.magnitude;
+        rayDirection = Vector3.Normalize(rayDirection);
+        Vector3? intersectionPoint;
+        // If intersection, compute new position and velocity.
+        if (IntersectionTests.RayTriangleTest(ball.lastPosition, rayDirection, distance, triangle, out intersectionPoint)) {
+          Debug.Log("intersection");
+          Vector3 point = (Vector3) intersectionPoint;
+          Vector3 wrongPos = ball.transform.position;
+          Vector3 normal = Vector3.Normalize(Vector3.Cross(triangle[2] - triangle[0],
+                                                           triangle[1] - triangle[0]));
+          Vector3 newDirection = Vector3.Normalize(2*Vector3.Dot(-rayDirection, normal) * normal + rayDirection);
+          ball.velocity = (1.0f - groundDamping) * ball.velocity.magnitude * newDirection;
+          ball.lastPosition = point;
+          ball.transform.position = point + ball.velocity * Time.deltaTime;
+        }
+      }
+    }
   }
 }

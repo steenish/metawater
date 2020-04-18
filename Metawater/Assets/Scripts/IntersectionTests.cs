@@ -6,6 +6,29 @@ public class IntersectionTests {
 
   public static readonly float epsilon = 0.001f;
 
+  // Traverses an AABBTree from currentNode. Returns true if leaf is found, and
+  // the triangles are returned in the triangles array. Otherwise, return false.
+  public static bool GetTriangles(Vector3 point, AABBTreeNode currentNode, out int[] triangles) {
+    triangles = null;
+    // Check if point is within bounds.
+    if (currentNode.bounds.Contains(point)) {
+      Debug.Log("within some bounds");
+      // If point within bounds, check if currentNode is leaf.
+      if (currentNode.leftChild == null && currentNode.rightChild == null) {
+        // If leaf, set triangles and return true.
+        triangles = currentNode.triangles;
+        return true;
+      } else {
+        // If not leaf, continue recursion. Either point is in leftChild or rightChild.
+        return GetTriangles(point, currentNode.leftChild, out triangles) ||
+               GetTriangles(point, currentNode.rightChild, out triangles);
+      }
+    } else {
+      // If not within bounds, return false.
+      return false;
+    }
+  }
+
   // Returns true if the ray originating in rayOrigin in the normalized direction
   // rayDirection intersects the triangle defined by the vertices in triangleVertices
   // in clockwise winding order, and gives the intersection point in intersectionPoint.

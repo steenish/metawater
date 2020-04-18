@@ -426,8 +426,12 @@ MonoBehaviour:
   groundDamping: 0.7
   numBalls: 2
   meanRadius: 2
+  leafNumTriangles: 8
   showDebugMarkers: 1
   debugSprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  showDebugBoundsVis: 1
+  debugBoundsVis: {fileID: 3967172253000263629, guid: 9de39ac0b9715e6039c58598ff560804,
+    type: 3}
 --- !u!1 &1674661893
 GameObject:
   m_ObjectHideFlags: 0
@@ -506,9 +510,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e282cdd5ef6a99645955fa0df14fcb8e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  heightmap: {fileID: 2800000, guid: 5396a17b680483990a403bdbdad4dd0e, type: 3}
+  heightmap: {fileID: 2800000, guid: ce8e7b9c82d5e49bfba95f777fdcb293, type: 3}
   areaScale: 0.1
-  heightScale: 1
+  heightScale: 0.5
+  boundsHeight: 10
 --- !u!4 &1674661897
 Transform:
   m_ObjectHideFlags: 0

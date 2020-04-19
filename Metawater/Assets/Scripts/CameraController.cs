@@ -22,8 +22,8 @@ public class CameraController : MonoBehaviour {
   void Start() {
     Cursor.lockState = CursorLockMode.Locked;
 
-    yaw = transform.eulerAngles.x;
-    pitch = transform.eulerAngles.y;
+    yaw = transform.eulerAngles.y;
+    pitch = transform.eulerAngles.x;
   }
 
   void Update() {

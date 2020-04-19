@@ -11,8 +11,8 @@ public class TerrainConstructor : MonoBehaviour {
   private float areaScale = 0.1f;
   [SerializeField]
   private float heightScale = 1.0f;
-  [SerializeField]
-  private float boundsHeight = 10.0f;
+
+  public static readonly float boundsHeight = 1.0f;
 
   public Bounds terrainBounds { get; private set; }
 
@@ -36,10 +36,10 @@ public class TerrainConstructor : MonoBehaviour {
     width = heightmap.width;
 
     // Place restrictions on height and width.
-    Debug.Assert(height == width && // Equal height and width.
-                 height % 2 == 0 && // Power of 2 (actually multiple of 2).
-                 height >= 8, // Side at least eight pixels.
-                 "Incompatible heightmap dimensions.");
+    // Debug.Assert(height == width && // Equal height and width.
+    //              height % 2 == 0 && // Power of 2 (actually multiple of 2).
+    //              height >= 8, // Side at least eight pixels.
+    //              "Incompatible heightmap dimensions.");
 
     // Construct vertices.
     vertices = new Vector3[width*height];
@@ -82,10 +82,9 @@ public class TerrainConstructor : MonoBehaviour {
     mesh.RecalculateNormals();
 
     // Get bounds.
-    terrainBounds = mesh.bounds;
-    Vector3 heightPoint = new Vector3(terrainBounds.center.x, terrainBounds.center.y + boundsHeight, terrainBounds.center.z);
-    terrainBounds.Encapsulate(heightPoint);
-    Debug.Log(heightPoint);
-    Debug.Log(terrainBounds);
+    Bounds modifiedBounds = mesh.bounds;
+    Vector3 heightPoint = new Vector3(modifiedBounds.center.x, modifiedBounds.center.y + boundsHeight, modifiedBounds.center.z);
+    modifiedBounds.Encapsulate(heightPoint);
+    terrainBounds = modifiedBounds;
   }
 }

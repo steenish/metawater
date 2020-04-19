@@ -33,6 +33,11 @@ public class PhysicsController : MonoBehaviour {
   private Bounds terrainBounds;
   private Mesh terrainMesh;
 
+  // DEBUG
+  private int numShownlevels = 0;
+  private int numBox = 0;
+  private bool loggedNumVertices = false;
+
   void Start() {
     // Get terrain mesh. Mesh guaranteed to already be constructed since that happens in Awake.
     GameObject terrain = GameObject.FindWithTag("Terrain");
@@ -47,7 +52,7 @@ public class PhysicsController : MonoBehaviour {
     for (int i = 0; i < numBalls; ++i) {
       // Select random position within bounds.
       float x = UnityEngine.Random.Range(terrainBounds.min.x + meanRadius, terrainBounds.max.x - meanRadius);
-      float y = UnityEngine.Random.Range(terrainBounds.min.y + meanRadius, terrainBounds.max.y - meanRadius);
+      float y = terrainBounds.center.y + terrainBounds.size.y;
       float z = UnityEngine.Random.Range(terrainBounds.min.z + meanRadius, terrainBounds.max.z - meanRadius);
 
       // Create metaball object, creat metaball component and set parameters.
@@ -68,50 +73,50 @@ public class PhysicsController : MonoBehaviour {
 
   // Since these physics are independent from Unity's doing physics in Update
   // as opposed to FixedUpdate is not a problem.
-  void Update() {
-    Vector3[] vertices = terrainMesh.vertices;
-    foreach (Metaball ball in metaballs) {
-      // Update velocity according to acceleration.
-      ball.velocity += Vector3.down * gravityAcceleration * Time.deltaTime;
-
-      // Update position according to velocity.
-      ball.lastPosition = ball.transform.position;
-      ball.transform.position += ball.velocity * Time.deltaTime;
-
-      // Check for intersection.
-      int[] triangles;
-      if (IntersectionTests.GetTriangles(ball.transform.position, rootNode, out triangles)) {
-        // Iterate through all found triangles.
-        for (int i = 0; i < triangles.Length; i += 3) {
-          // Get triangle vertices.
-          Vector3[] triangle = new Vector3[] { vertices[triangles[i]],
-                                               vertices[triangles[i+1]],
-                                               vertices[triangles[i+2]] };
-          // Test for intersection.
-          Vector3 rayDirection = ball.transform.position - ball.lastPosition;
-          float distance = rayDirection.magnitude;
-          rayDirection = Vector3.Normalize(rayDirection);
-          Vector3? intersectionPoint;
-          // If intersection, compute new position and velocity.
-          if (IntersectionTests.RayTriangleTest(ball.lastPosition, rayDirection, distance, triangle, out intersectionPoint)) {
-            Vector3 point = (Vector3) intersectionPoint;
-            Vector3 normal = Vector3.Normalize(Vector3.Cross(triangle[2] - triangle[0],
-            triangle[1] - triangle[0]));
-            // Get reflection direction.
-            Vector3 newDirection = Vector3.Normalize(2*Vector3.Dot(-rayDirection, normal) * normal + rayDirection);
-            // Set dampened velocity.
-            ball.velocity = (1.0f - groundDamping) * ball.velocity.magnitude * newDirection;
-            // Update last position to the intersection point.
-            ball.lastPosition = point;
-            // The new ball position is the distance traveled from the intersection point
-            // the distance traveled beyond the triangle, but adjusted for the new
-            // velocity and along the reflection direction.
-            ball.transform.position = point + ball.velocity * Time.deltaTime;
-          }
-        }
-      }
-    }
-  }
+  // void Update() {
+  //   Vector3[] vertices = terrainMesh.vertices;
+  //   foreach (Metaball ball in metaballs) {
+  //     // Update velocity according to acceleration.
+  //     ball.velocity += Vector3.down * gravityAcceleration * Time.deltaTime;
+  //
+  //     // Update position according to velocity.
+  //     ball.lastPosition = ball.transform.position;
+  //     ball.transform.position += ball.velocity * Time.deltaTime;
+  //
+  //     // Check for intersection.
+  //     int[] triangles;
+  //     if (IntersectionTests.GetTriangles(ball.transform.position, rootNode, out triangles)) {
+  //       // Iterate through all found triangles.
+  //       for (int i = 0; i < triangles.Length; i += 3) {
+  //         // Get triangle vertices.
+  //         Vector3[] triangle = new Vector3[] { vertices[triangles[i]],
+  //                                              vertices[triangles[i+1]],
+  //                                              vertices[triangles[i+2]] };
+  //         // Test for intersection.
+  //         Vector3 rayDirection = ball.transform.position - ball.lastPosition;
+  //         float distance = rayDirection.magnitude;
+  //         rayDirection = Vector3.Normalize(rayDirection);
+  //         Vector3? intersectionPoint;
+  //         // If intersection, compute new position and velocity.
+  //         if (IntersectionTests.RayTriangleTest(ball.lastPosition, rayDirection, distance, triangle, out intersectionPoint)) {
+  //           Vector3 point = (Vector3) intersectionPoint;
+  //           Vector3 normal = Vector3.Normalize(Vector3.Cross(triangle[2] - triangle[0],
+  //           triangle[1] - triangle[0]));
+  //           // Get reflection direction.
+  //           Vector3 newDirection = Vector3.Normalize(2*Vector3.Dot(-rayDirection, normal) * normal + rayDirection);
+  //           // Set dampened velocity.
+  //           ball.velocity = (1.0f - groundDamping) * ball.velocity.magnitude * newDirection;
+  //           // Update last position to the intersection point.
+  //           ball.lastPosition = point;
+  //           // The new ball position is the distance traveled from the intersection point
+  //           // the distance traveled beyond the triangle, but adjusted for the new
+  //           // velocity and along the reflection direction.
+  //           ball.transform.position = point + ball.velocity * Time.deltaTime;
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
 
   enum Direction {
     Left,
@@ -128,44 +133,80 @@ public class PhysicsController : MonoBehaviour {
       GameObject cube = Instantiate(debugBoundsVis, terrainBounds.center, Quaternion.identity, transform);
       cube.transform.localScale = terrainBounds.size;
     }
-    rootNode.leftChild = AABBTreeRecursion(rootNode, Direction.Left);
-    rootNode.rightChild = AABBTreeRecursion(rootNode, Direction.Right);
+    float nextLevelHeight = 0.75f * TerrainConstructor.boundsHeight;
+    rootNode.leftChild = AABBTreeRecursion(rootNode, Direction.Left, nextLevelHeight);
+    rootNode.rightChild = AABBTreeRecursion(rootNode, Direction.Right, nextLevelHeight);
   }
 
-  private AABBTreeNode AABBTreeRecursion(AABBTreeNode parent, Direction childDirection) {
-    int parentNumTriangles = parent.triangles.Length / 3;
+  private AABBTreeNode AABBTreeRecursion(AABBTreeNode parent, Direction childDirection, float boundsHeight) {
     // If left child, get the first half of the parent's triangles.
     // If right child, get the second half of the parent's triangles.
-    int triangleStartIndex = (childDirection == Direction.Left) ? 0 : parent.triangles.Length / 2 - 1;
+    int triangleStartIndex = (childDirection == Direction.Left) ? 0 : parent.triangles.Length / 2;
 
     // Get the correct triangles.
     int[] currentTriangles = new int[parent.triangles.Length / 2];
-    Array.Copy(parent.triangles, currentTriangles, currentTriangles.Length);
+    Array.Copy(parent.triangles, triangleStartIndex, currentTriangles, 0, currentTriangles.Length);
+
+    if (childDirection == Direction.Left) {
+      //// Debug.Log("numShownlevels = " + numShownlevels);
+      // Debug.Log("parent.triangles.Length = " + parent.triangles.Length);
+      // Debug.Log("currentTriangles.Length = " + currentTriangles.Length);
+      // Debug.Log("childDirection = " + childDirection);
+      // Debug.Log("triangleStartIndex = " + triangleStartIndex);
+    }
 
     // Construct bounds from triangles.
     Vector3[] terrainVertices = terrainMesh.vertices;
+    if (!loggedNumVertices) Debug.Log(terrainVertices.Length);
+    loggedNumVertices = true;
+    // DEBUG
+    int minIndex = currentTriangles[0];
+    int maxIndex = currentTriangles[currentTriangles.Length-1];
     Vector3 min = terrainVertices[currentTriangles[0]];
     Vector3 max = terrainVertices[currentTriangles[currentTriangles.Length-1]];
+    // Guarantee min has smallest y.
+    if (min.y >= max.y) {
+      float maxY = min.y;
+      min.y = max.y;
+      max.y = maxY;
+    }
     Vector3 center = Vector3.Lerp(min, max, 0.5f);
     Bounds currentBounds = new Bounds(center, Vector3.zero);
     currentBounds.Encapsulate(min);
     currentBounds.Encapsulate(max);
+
+    // Increase height of bounds.
+    Vector3 heightPoint = new Vector3(currentBounds.center.x, currentBounds.center.y + currentBounds.size.y + boundsHeight, currentBounds.center.z);
+    currentBounds.Encapsulate(heightPoint);
 
     // Create new node.
     AABBTreeNode currentNode = new AABBTreeNode(currentBounds);
     currentNode.triangles = currentTriangles;
 
     // DEBUG render bounding box visualization
-    if (showDebugBoundsVis) {
-      GameObject cube = Instantiate(debugBoundsVis, center, Quaternion.identity, transform);
-      cube.transform.localScale = currentBounds.size;
+    if (showDebugBoundsVis && childDirection == Direction.Left) {
+      StartCoroutine(waiter(center, currentBounds, min, max, minIndex, maxIndex));
     }
 
     // If node should not be leaf, set children, otherwise leave them null.
-    if (parentNumTriangles > 2*leafNumTriangles) {
-      currentNode.leftChild = AABBTreeRecursion(currentNode, Direction.Left);
-      currentNode.rightChild = AABBTreeRecursion(currentNode, Direction.Right);
+    if (currentTriangles.Length / 3 > leafNumTriangles) {
+      float nextLevelHeight = 0.75f * boundsHeight;
+      currentNode.leftChild = AABBTreeRecursion(currentNode, Direction.Left, nextLevelHeight);
+      currentNode.rightChild = AABBTreeRecursion(currentNode, Direction.Right, nextLevelHeight);
+      // Debug.Log("--------------");
+    } else {
+      // Debug.Log("leaf");
+      // Debug.Log("---------------------------");
     }
     return currentNode;
+  }
+
+  IEnumerator waiter(Vector3 center, Bounds currentBounds, Vector3 min, Vector3 max, int minIndex, int maxIndex) {
+    yield return new WaitForSecondsRealtime(5*(++numBox));
+    Debug.Log(currentBounds);
+    Debug.Log("minIndex = " + minIndex + ", maxIndex = " + maxIndex);
+    Debug.Log("min = " + min + ", max = " + max);
+    GameObject cube = Instantiate(debugBoundsVis, center, Quaternion.identity, transform);
+    cube.transform.localScale = currentBounds.size;
   }
 }

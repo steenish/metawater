@@ -32,7 +32,7 @@ public class MetaballRenderer : MonoBehaviour {
   [Range(0.1f, 3.0f)]
   private float resolution = 10;
   [SerializeField]
-  [Range(0.0f, 10.0f)]
+  [Range(0.0f, 100.0f)]
   private float threshold = 2;
   [SerializeField]
   private Vector3 boundsOffset = Vector3.zero;

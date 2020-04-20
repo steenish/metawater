@@ -12,10 +12,8 @@ public class IntersectionTests {
     triangles = null;
     // Check if point is within bounds.
     if (currentNode.bounds.Contains(point)) {
-      // Debug.Log("within some bounds");
       // If point within bounds, check if currentNode is leaf.
       if (currentNode.leftChild == null && currentNode.rightChild == null) {
-        Debug.Log("within leaf bounds");
         // If leaf, set triangles and return true.
         triangles = currentNode.triangles;
         return true;
@@ -50,7 +48,7 @@ public class IntersectionTests {
     float t = Vector3.Dot((triangleVertices[0] - rayOrigin), normal) / d;
 
     // Illegal intersection found.
-    if (t < 0 || t + epsilon > maxDistance) return false;
+    if (t < 0 || t > maxDistance) return false;
 
     // Find the potential intersection point.
     Vector3 intersectionCandidate = rayOrigin + t*rayDirection;

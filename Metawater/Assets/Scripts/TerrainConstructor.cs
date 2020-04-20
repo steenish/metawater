@@ -1,3 +1,4 @@
+using System;
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,7 +7,9 @@ using UnityEngine;
 public class TerrainConstructor : MonoBehaviour {
 
   [SerializeField]
+  #pragma warning disable
   private Texture2D heightmap;
+  #pragma warning restore
   [SerializeField]
   private float areaScale = 0.1f;
   [SerializeField]
@@ -35,11 +38,12 @@ public class TerrainConstructor : MonoBehaviour {
     height = heightmap.height;
     width = heightmap.width;
 
+    int[] allowedSides = { 9, 17, 33, 65, 129, 257, 513, 1025 };
+
     // Place restrictions on height and width.
-    // Debug.Assert(height == width && // Equal height and width.
-    //              height % 2 == 0 && // Power of 2 (actually multiple of 2).
-    //              height >= 8, // Side at least eight pixels.
-    //              "Incompatible heightmap dimensions.");
+    Debug.Assert(height == width && // Equal height and width.
+                 Array.Exists(allowedSides, element => element == height),
+                 "Incompatible heightmap dimensions.");
 
     // Construct vertices.
     vertices = new Vector3[width*height];

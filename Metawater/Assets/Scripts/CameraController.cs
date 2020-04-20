@@ -13,6 +13,8 @@ public class CameraController : MonoBehaviour {
   [SerializeField]
   [Range(1.0f, 5.0f)]
   private float sensitivity = 2.0f;
+  [SerializeField]
+  private bool frameDependent = true;
 
   private float yaw;
   private float pitch;
@@ -28,10 +30,16 @@ public class CameraController : MonoBehaviour {
 
   void Update() {
     // Handle camera translation.
-    float forwardTranslation = Input.GetAxis("Vertical") * speed * Time.deltaTime;
-    float rightTranslation = Input.GetAxis("Horizontal") * speed * Time.deltaTime;
+    float forwardTranslation = Input.GetAxis("Vertical") * speed;
+    float rightTranslation = Input.GetAxis("Horizontal") * speed;
     float upTranslation = 0.0f;
-    float upTranslationChange = 0.5f * speed * Time.deltaTime;
+    float upTranslationChange = 0.5f * speed;
+
+    if (frameDependent) {
+      forwardTranslation *= Time.deltaTime;
+      rightTranslation *= Time.deltaTime;
+      upTranslationChange *= Time.deltaTime;
+    }
 
     if (Input.GetKey(KeyCode.Space)) {
       upTranslation += upTranslationChange;

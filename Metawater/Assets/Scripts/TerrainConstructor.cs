@@ -89,6 +89,8 @@ public class TerrainConstructor : MonoBehaviour {
     Bounds modifiedBounds = mesh.bounds;
     Vector3 heightPoint = new Vector3(modifiedBounds.center.x, modifiedBounds.center.y + boundsHeight, modifiedBounds.center.z);
     modifiedBounds.Encapsulate(heightPoint);
+    Vector3 negativeHeightPoint = new Vector3(modifiedBounds.center.x, modifiedBounds.center.y - boundsHeight, modifiedBounds.center.z);
+    modifiedBounds.Encapsulate(negativeHeightPoint);
     terrainBounds = modifiedBounds;
   }
 }

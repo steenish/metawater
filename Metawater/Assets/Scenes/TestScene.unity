@@ -345,8 +345,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a9a0d8182565824595f4a5bf12a48e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  resolution: 1.5
-  threshold: 11.5
+  resolution: 3
+  threshold: 5
   boundsOffset: {x: 3, y: 3, z: 3}
   updateGridTimeThreshold: 0
   renderMetaballsTimeThreshold: 0
@@ -424,9 +424,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gravityAcceleration: 9.82
+  ballSpringStiffness: 1
+  minimumDistance: 3
+  maximumDistance: 3
   groundDamping: 0.7
-  numBalls: 20
+  numBalls: 5
   meanRadius: 2
+  constantOffset: 0.07
   leafNumTriangles: 8
   showDebugMarkers: 0
   debugSprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
@@ -511,7 +515,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e282cdd5ef6a99645955fa0df14fcb8e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  heightmap: {fileID: 2800000, guid: e60c4c58239d79bdfa7812c0ed8ae77c, type: 3}
+  heightmap: {fileID: 2800000, guid: d085515aac89766efbc781d846770bcb, type: 3}
   areaScale: 0.5
   heightScale: 2.5
 --- !u!4 &1674661897

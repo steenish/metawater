@@ -8,6 +8,12 @@ public class PhysicsController : MonoBehaviour {
   [SerializeField]
   private float gravityAcceleration = 9.82f;
   [SerializeField]
+  private float ballSpringStiffness = 3.0f;
+  [SerializeField]
+  private float minimumDistance = 1.0f;
+  [SerializeField]
+  private float maximumDistance = 3.0f;
+  [SerializeField]
   [Range(0.0f, 1.0f)]
   private float groundDamping = 0.7f;
   [SerializeField]
@@ -15,6 +21,8 @@ public class PhysicsController : MonoBehaviour {
   private int numBalls = 1;
   [SerializeField]
   private float meanRadius = 2.0f;
+  [SerializeField]
+  private float constantOffset = 0.07f;
   [SerializeField]
   [Range(2, 16)]
   private int leafNumTriangles = 8;
@@ -35,7 +43,6 @@ public class PhysicsController : MonoBehaviour {
 
   private AABBTreeNode rootNode;
   private Bounds terrainBounds;
-  private float constantOffset = 0.07f;
   private float maxY;
   private float minY;
   private Mesh terrainMesh;
@@ -90,8 +97,29 @@ public class PhysicsController : MonoBehaviour {
         ball.transform.position = new Vector3(x,y,z);
       }
 
+      // Calculate the cumulative acceleration.
+      Vector3 totalAcceleration = gravityAcceleration * Vector3.down;
+      foreach (Metaball otherBall in metaballs) {
+        if (ball == otherBall) continue;
+
+        // Force is like a spring force between each metaball and each other metaball.
+        // The spring force is to keep balls at a minimum distance from eachother.
+        // The force weakens the further away the balls are from eachother beyond the
+        // minimum distance.
+
+        Vector3 ballToOther = ball.transform.position - otherBall.transform.position;
+        Vector3 springForce = ballSpringStiffness * (-ballToOther + Vector3.Normalize(ballToOther)*minimumDistance);
+
+        // Force equation gives F = m * a, and with m = 1 for simplicity, we have F = a.
+        // Scale by 0.5 because this is only one of the two balls.
+        // If ball is outside maximumDistance of the equilibrium point, apply no force.
+        if (ballToOther.magnitude - minimumDistance < maximumDistance) {
+          totalAcceleration += 0.5f * springForce;
+        }
+      }
+
       // Update velocity according to acceleration.
-      ball.velocity += Vector3.down * gravityAcceleration * Time.deltaTime;
+      ball.velocity += totalAcceleration * Time.deltaTime;
 
       // Update position according to velocity.
       ball.lastPosition = ball.transform.position;

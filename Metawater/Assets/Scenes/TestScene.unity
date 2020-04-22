@@ -345,9 +345,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a9a0d8182565824595f4a5bf12a48e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  resolution: 3
-  threshold: 5
-  boundsOffset: {x: 3, y: 3, z: 3}
+  resolution: 1.3
+  threshold: 0.54
+  boundsOffset: {x: 4, y: 4, z: 4}
   updateGridTimeThreshold: 0
   renderMetaballsTimeThreshold: 0
 --- !u!4 &1235628156
@@ -423,12 +423,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a91ddfb303038a80e80f0fe3bba4abc3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  waterSpawnVolume:
+    m_Center: {x: 8, y: 7, z: 15}
+    m_Extent: {x: 2, y: 1, z: 0.2}
+  waterInitialMaxVelocity: {x: 0, y: 0, z: 0}
+  waterSpawnInterval: 80
   gravityAcceleration: 9.82
-  ballSpringStiffness: 1
+  ballSpringStiffness: 0
   minimumDistance: 3
-  maximumDistance: 3
+  maximumDistance: 5
   groundDamping: 0.7
-  numBalls: 5
+  numBalls: 20
   meanRadius: 2
   constantOffset: 0.07
   leafNumTriangles: 8
@@ -515,9 +520,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e282cdd5ef6a99645955fa0df14fcb8e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  heightmap: {fileID: 2800000, guid: d085515aac89766efbc781d846770bcb, type: 3}
-  areaScale: 0.5
-  heightScale: 2.5
+  heightmap: {fileID: 2800000, guid: 138fd001c4971ddd2b2b608e23ddfa7a, type: 3}
+  areaScale: 1
+  heightScale: 7
 --- !u!4 &1674661897
 Transform:
   m_ObjectHideFlags: 0

@@ -32,7 +32,7 @@ public class MetaballRenderer : MonoBehaviour {
   [Range(0.1f, 3.0f)]
   private float resolution = 10;
   [SerializeField]
-  [Range(0.0f, 100.0f)]
+  [Range(0.0f, 1.0f)]
   private float threshold = 2;
   [SerializeField]
   private Vector3 boundsOffset = Vector3.zero;
@@ -100,9 +100,9 @@ public class MetaballRenderer : MonoBehaviour {
     float increment = 1 / resolution;
 
     // Varying amount of grid points in all directions.
-    int pointsX = (int) ((boundingBox.max.x - boundingBox.min.x) / increment);
-    int pointsY = (int) ((boundingBox.max.y - boundingBox.min.y) / increment);
-    int pointsZ = (int) ((boundingBox.max.z - boundingBox.min.z) / increment);
+    int pointsX = Mathf.Clamp((int) ((boundingBox.max.x - boundingBox.min.x) / increment), 0, int.MaxValue);
+    int pointsY = Mathf.Clamp((int) ((boundingBox.max.y - boundingBox.min.y) / increment), 0, int.MaxValue);
+    int pointsZ = Mathf.Clamp((int) ((boundingBox.max.z - boundingBox.min.z) / increment), 0, int.MaxValue);
 
     grid = new GridPoint[pointsX, pointsY, pointsZ];
 
@@ -123,6 +123,7 @@ public class MetaballRenderer : MonoBehaviour {
     Vector3 currentMax = Vector3.negativeInfinity;
     Metaball[] metaballs = physicsController.metaballs;
     for (int i = 1; i < metaballs.Length; ++i) {
+      if (!metaballs[i].instantiated) continue;
       Vector3 candidate = metaballs[i].transform.position;
 
       // Check if candidate position is lesser or greater than current min or max.
@@ -147,6 +148,7 @@ public class MetaballRenderer : MonoBehaviour {
   // Updates the value in each grid point according to metaball positions.
   private void UpdateGridValues() {
     if (grid == null) return;
+    float inverseDivisor = 1.0f / (physicsController.numInstantiatedBalls + 1.0f);
 
     for (int i = 0; i < grid.GetLength(0); ++i) {
       for (int j = 0; j < grid.GetLength(1); ++j) {
@@ -155,9 +157,10 @@ public class MetaballRenderer : MonoBehaviour {
           float pointValue = 0;
           Metaball[] metaballs = physicsController.metaballs;
           foreach (Metaball ball in metaballs) {
+            if (!ball.instantiated) continue;
             pointValue += ball.Falloff(position);
           }
-          grid[i,j,k].value = pointValue;
+          grid[i,j,k].value = pointValue * inverseDivisor;
         }
       }
     }

@@ -5,10 +5,21 @@ using UnityEngine;
 
 public class PhysicsController : MonoBehaviour {
 
+  enum Direction {
+    Left,
+    Right
+  }
+
+  [SerializeField]
+  private Bounds waterSpawnVolume;
+  [SerializeField]
+  private Vector3 waterInitialMaxVelocity = Vector3.zero;
+  [SerializeField]
+  private int waterSpawnInterval = 10;
   [SerializeField]
   private float gravityAcceleration = 9.82f;
   [SerializeField]
-  private float ballSpringStiffness = 3.0f;
+  private float ballSpringStiffness = 1.0f;
   [SerializeField]
   private float minimumDistance = 1.0f;
   [SerializeField]
@@ -40,11 +51,13 @@ public class PhysicsController : MonoBehaviour {
   #pragma warning restore
 
   public Metaball[] metaballs { get; private set; }
+  public int numInstantiatedBalls { get; private set; }
 
   private AABBTreeNode rootNode;
   private Bounds terrainBounds;
   private float maxY;
   private float minY;
+  private int framesSinceInstantiation = 0;
   private Mesh terrainMesh;
 
   void Start() {
@@ -61,21 +74,17 @@ public class PhysicsController : MonoBehaviour {
     // Instantiate metaballs.
     metaballs = new Metaball[numBalls];
     for (int i = 0; i < numBalls; ++i) {
-      // Select random position within bounds.
-      float x = UnityEngine.Random.Range(terrainBounds.min.x + meanRadius, terrainBounds.max.x - meanRadius);
-      float y = terrainBounds.center.y + terrainBounds.size.y;
-      float z = UnityEngine.Random.Range(terrainBounds.min.z + meanRadius, terrainBounds.max.z - meanRadius);
-
       // Create metaball object, creat metaball component and set parameters.
       GameObject metaballObject = new GameObject("Metaball" + (i+1));
       metaballs[i] = metaballObject.AddComponent<Metaball>();
       metaballs[i].transform.parent = transform;
-      metaballs[i].transform.position = new Vector3(x, y, z);
+      metaballs[i].transform.position = GetRandomSpawnPoint();
+      metaballs[i].instantiated = false;
       metaballs[i].radius = meanRadius;
-      metaballs[i].velocity = new Vector3(0.0f, 0.0f, 0.0f);
+      metaballs[i].velocity = Vector3.Lerp(Vector3.zero, waterInitialMaxVelocity, UnityEngine.Random.Range(0.0f, 1.0f));;
       metaballs[i].lastPosition = metaballs[i].transform.position;
 
-      // Potentially render debug balls.
+      // Potentially render debug markers.
       if (showDebugMarkers) {
         metaballObject.AddComponent<SpriteRenderer>().sprite = debugSprite;
       }
@@ -87,20 +96,30 @@ public class PhysicsController : MonoBehaviour {
   void Update() {
     Vector3[] vertices = terrainMesh.vertices;
     foreach (Metaball ball in metaballs) {
+      // Check if ball is instantiated.
+      if (!ball.instantiated) {
+        // If ball is not instantiated, check if it should be.
+        if (framesSinceInstantiation > waterSpawnInterval) {
+          // Ball should be instantiated, reset framesSinceInstantiation.
+          framesSinceInstantiation = 0;
+          ball.instantiated = true;
+          numInstantiatedBalls++;
+        } else {
+          // Ball should not be instantiated, skip all physics.
+          continue;
+        }
+      }
       // Check if ball is within bounds.
       if (ball.transform.position.y < terrainBounds.min.y) {
-        // Set new position if ball is out of bounds.
-        float x = UnityEngine.Random.Range(terrainBounds.min.x + meanRadius, terrainBounds.max.x - meanRadius);
-        float y = terrainBounds.center.y + 0.5f * terrainBounds.size.y;
-        float z = UnityEngine.Random.Range(terrainBounds.min.z + meanRadius, terrainBounds.max.z - meanRadius);
-
-        ball.transform.position = new Vector3(x,y,z);
+        // Set new spawn position and reset velocity if ball is out of bounds.
+        ball.transform.position = GetRandomSpawnPoint();
+        ball.velocity = Vector3.Lerp(Vector3.zero, waterInitialMaxVelocity, UnityEngine.Random.Range(0.0f, 1.0f));
       }
 
       // Calculate the cumulative acceleration.
       Vector3 totalAcceleration = gravityAcceleration * Vector3.down;
       foreach (Metaball otherBall in metaballs) {
-        if (ball == otherBall) continue;
+        if (ball == otherBall || !otherBall.instantiated) continue;
 
         // Force is like a spring force between each metaball and each other metaball.
         // The spring force is to keep balls at a minimum distance from eachother.
@@ -177,11 +196,15 @@ public class PhysicsController : MonoBehaviour {
         }
       }
     }
+    framesSinceInstantiation++;
   }
 
-  enum Direction {
-    Left,
-    Right
+  private Vector3 GetRandomSpawnPoint() {
+    // Select random position within bounds.
+    float x = UnityEngine.Random.Range(waterSpawnVolume.min.x, waterSpawnVolume.max.x);
+    float y = UnityEngine.Random.Range(waterSpawnVolume.min.y, waterSpawnVolume.max.y);
+    float z = UnityEngine.Random.Range(waterSpawnVolume.min.z, waterSpawnVolume.max.z);
+    return new Vector3(x,y,z);
   }
 
   private void ConstructAABBTree() {

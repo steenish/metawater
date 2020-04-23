@@ -1,5 +1,5 @@
 using System;
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -147,23 +147,13 @@ public class PhysicsController : MonoBehaviour {
       // Check for intersection.
       int[] triangles;
       if (IntersectionTests.GetTriangles(ball.transform.position, rootNode, out triangles)) {
-        bool fastIntersectionFound = false;
-        // Do two passes for intersection tests.
-        // First pass tests the found triangles in the leaf bounding box. Fast.
-        // Second pass tests all triangles if the first pass failed.
-        // This minimizes risk for fallthrough while giving good performance.
-        for (int pass = 1; pass <= 2; ++pass) {
-          // If no fast intersection was found, do exhaustive.
-          if (pass == 2 && !fastIntersectionFound) {
-            triangles = terrainMesh.triangles;
-          }
-
-          // Iterate through all found triangles.
-          for (int i = 0; i < triangles.Length; i += 3) {
-            // Get triangle vertices.
-            Vector3[] triangle = new Vector3[] { vertices[triangles[i]],
-                                                 vertices[triangles[i+1]],
-                                                 vertices[triangles[i+2]] };
+        // Iterate through all found triangles.
+        for (int i = 0; i < triangles.Length; i += 3) {
+          // Get triangle vertices.
+          Vector3[] triangle = new Vector3[] {
+            vertices[triangles[i]],
+            vertices[triangles[i+1]],
+            vertices[triangles[i+2]] };
 
             // Test for intersection.
             Vector3 rayDirection = ball.transform.position - ball.lastPosition;
@@ -173,8 +163,8 @@ public class PhysicsController : MonoBehaviour {
             // If intersection, compute new position and velocity.
             if (IntersectionTests.RayTriangleTest(ball.lastPosition, rayDirection, distance, triangle, out intersectionPoint)) {
               Vector3 point = (Vector3) intersectionPoint;
-              Vector3 normal = Vector3.Normalize(Vector3.Cross(triangle[2] - triangle[0],
-                                                               triangle[1] - triangle[0]));
+              Vector3 normal = Vector3.Normalize(
+                Vector3.Cross(triangle[2] - triangle[0], triangle[1] - triangle[0]));
               // Get reflection direction.
               Vector3 newDirection = Vector3.Normalize(2*Vector3.Dot(-rayDirection, normal) * normal + rayDirection);
               // Set dampened velocity.
@@ -187,75 +177,71 @@ public class PhysicsController : MonoBehaviour {
               ball.transform.position = point + constantOffset * Vector3.up + ball.velocity * Time.deltaTime;
 
               // Break out of loop checking triangles after intersection was found.
-              // If this is on the first pass, signal that second pass is not necessary.
-              // If this is on the second pass, setting this will not matter.
-              fastIntersectionFound = true;
               break;
             }
           }
         }
       }
-    }
-    framesSinceInstantiation++;
-  }
-
-  private Vector3 GetRandomSpawnPoint() {
-    // Select random position within bounds.
-    float x = UnityEngine.Random.Range(waterSpawnVolume.min.x, waterSpawnVolume.max.x);
-    float y = UnityEngine.Random.Range(waterSpawnVolume.min.y, waterSpawnVolume.max.y);
-    float z = UnityEngine.Random.Range(waterSpawnVolume.min.z, waterSpawnVolume.max.z);
-    return new Vector3(x,y,z);
-  }
-
-  private void ConstructAABBTree() {
-    // Construct root node.
-    rootNode = new AABBTreeNode(terrainBounds);
-    rootNode.triangles = terrainMesh.triangles;
-
-    if (showDebugBoundsVis) {
-      GameObject cube = Instantiate(debugBoundsVis, terrainBounds.center, Quaternion.identity, transform);
-      cube.transform.localScale = terrainBounds.size;
+      framesSinceInstantiation++;
     }
 
-    rootNode.leftChild = AABBTreeRecursion(rootNode, Direction.Left);
-    rootNode.rightChild = AABBTreeRecursion(rootNode, Direction.Right);
-  }
-
-  private AABBTreeNode AABBTreeRecursion(AABBTreeNode parent, Direction childDirection) {
-    // If left child, get the first half of the parent's triangles.
-    // If right child, get the second half of the parent's triangles.
-    int triangleStartIndex = (childDirection == Direction.Left) ? 0 : parent.triangles.Length / 2;
-
-    // Get the correct triangles.
-    int[] currentTriangles = new int[parent.triangles.Length / 2];
-    Array.Copy(parent.triangles, triangleStartIndex, currentTriangles, 0, currentTriangles.Length);
-
-    // Construct bounds from triangles.
-    Vector3[] terrainVertices = terrainMesh.vertices;
-    Vector3 min = terrainVertices[currentTriangles[0]];
-    Vector3 max = terrainVertices[currentTriangles[currentTriangles.Length-1]];
-    // Correct height of the bounds.
-    min = new Vector3(min.x, minY, min.z);
-    max = new Vector3(max.x, maxY, max.z);
-    Vector3 center = Vector3.Lerp(min, max, 0.5f);
-    Bounds currentBounds = new Bounds(center, Vector3.zero);
-    currentBounds.Encapsulate(min);
-    currentBounds.Encapsulate(max);
-
-    // Create new node.
-    AABBTreeNode currentNode = new AABBTreeNode(currentBounds);
-    currentNode.triangles = currentTriangles;
-
-    if (showDebugBoundsVis) {
-      GameObject cube = Instantiate(debugBoundsVis, center, Quaternion.identity, transform);
-      cube.transform.localScale = currentBounds.size;
+    private Vector3 GetRandomSpawnPoint() {
+      // Select random position within bounds.
+      float x = UnityEngine.Random.Range(waterSpawnVolume.min.x, waterSpawnVolume.max.x);
+      float y = UnityEngine.Random.Range(waterSpawnVolume.min.y, waterSpawnVolume.max.y);
+      float z = UnityEngine.Random.Range(waterSpawnVolume.min.z, waterSpawnVolume.max.z);
+      return new Vector3(x,y,z);
     }
 
-    // If node should not be leaf, set children, otherwise leave them null.
-    if (currentTriangles.Length / 3 > leafNumTriangles) {
-      currentNode.leftChild = AABBTreeRecursion(currentNode, Direction.Left);
-      currentNode.rightChild = AABBTreeRecursion(currentNode, Direction.Right);
+    private void ConstructAABBTree() {
+      // Construct root node.
+      rootNode = new AABBTreeNode(terrainBounds);
+      rootNode.triangles = terrainMesh.triangles;
+
+      if (showDebugBoundsVis) {
+        GameObject cube = Instantiate(debugBoundsVis, terrainBounds.center, Quaternion.identity, transform);
+        cube.transform.localScale = terrainBounds.size;
+      }
+
+      rootNode.leftChild = AABBTreeRecursion(rootNode, Direction.Left);
+      rootNode.rightChild = AABBTreeRecursion(rootNode, Direction.Right);
     }
-    return currentNode;
+
+    private AABBTreeNode AABBTreeRecursion(AABBTreeNode parent, Direction childDirection) {
+      // If left child, get the first half of the parent's triangles.
+      // If right child, get the second half of the parent's triangles.
+      int triangleStartIndex = (childDirection == Direction.Left) ? 0 : parent.triangles.Length / 2;
+
+      // Get the correct triangles.
+      int[] currentTriangles = new int[parent.triangles.Length / 2];
+      Array.Copy(parent.triangles, triangleStartIndex, currentTriangles, 0, currentTriangles.Length);
+
+      // Construct bounds from triangles.
+      Vector3[] terrainVertices = terrainMesh.vertices;
+      Vector3 min = terrainVertices[currentTriangles[0]];
+      Vector3 max = terrainVertices[currentTriangles[currentTriangles.Length-1]];
+      // Correct height of the bounds.
+      min = new Vector3(min.x, minY, min.z);
+      max = new Vector3(max.x, maxY, max.z);
+      Vector3 center = Vector3.Lerp(min, max, 0.5f);
+      Bounds currentBounds = new Bounds(center, Vector3.zero);
+      currentBounds.Encapsulate(min);
+      currentBounds.Encapsulate(max);
+
+      // Create new node.
+      AABBTreeNode currentNode = new AABBTreeNode(currentBounds);
+      currentNode.triangles = currentTriangles;
+
+      if (showDebugBoundsVis) {
+        GameObject cube = Instantiate(debugBoundsVis, center, Quaternion.identity, transform);
+        cube.transform.localScale = currentBounds.size;
+      }
+
+      // If node should not be leaf, set children, otherwise leave them null.
+      if (currentTriangles.Length / 3 > leafNumTriangles) {
+        currentNode.leftChild = AABBTreeRecursion(currentNode, Direction.Left);
+        currentNode.rightChild = AABBTreeRecursion(currentNode, Direction.Right);
+      }
+      return currentNode;
+    }
   }
-}

@@ -345,7 +345,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a9a0d8182565824595f4a5bf12a48e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  resolution: 1.3
+  resolution: 2
   threshold: 0.54
   boundsOffset: {x: 4, y: 4, z: 4}
   updateGridTimeThreshold: 0

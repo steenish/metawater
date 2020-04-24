@@ -6,6 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/TestScene.unity
+    path: Assets/Scenes/FullVersion.unity
     guid: 9fc0d4010bbf28b4594072e72b8655ab
+  - enabled: 1
+    path: Assets/Scenes/NativeCollision.unity
+    guid: c92a0673e74356bd790b56611a3d23e4
+  - enabled: 1
+    path: Assets/Scenes/Nile.unity
+    guid: 25abff2971941dccdac83632268a1bdb
   m_configObjects: {}

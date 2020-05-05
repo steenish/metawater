@@ -5,15 +5,13 @@ using UnityEngine.SceneManagement;
 
 public class SceneSwitcher : MonoBehaviour {
 
-  public void LoadFullVersion() {
-    SceneManager.LoadScene(0);
-  }
-
-  public void LoadUnityCollisionsVersion() {
-    SceneManager.LoadScene(1);
-  }
-
-  public void LoadUnityCollisionsNileVersion() {
-    SceneManager.LoadScene(2);
+  void Update() {
+    if (Input.GetKey(KeyCode.Alpha1)) {
+      SceneManager.LoadScene(0);
+    } else if (Input.GetKey(KeyCode.Alpha2)) {
+      SceneManager.LoadScene(1);
+    } else if (Input.GetKey(KeyCode.Alpha3)) {
+      SceneManager.LoadScene(2);
+    }
   }
 }

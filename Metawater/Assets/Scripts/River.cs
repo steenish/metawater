@@ -26,7 +26,7 @@ public class River : MonoBehaviour {
 
     private void Start() {
         terrainLayerMask = 1 << 8;
-        terrainMesh = GameObject.Find("Terrain").GetComponent<MeshFilter>().mesh;
+        terrainMesh = GameObject.Find("Terrain").GetComponent<MeshFilter>().sharedMesh;
         InvokeRepeating("CalculateRiver", 0.0f, updateInterval);
     }
 

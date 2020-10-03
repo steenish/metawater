@@ -31,7 +31,7 @@ public class TerrainConstructor : MonoBehaviour {
     // Initialize and set mesh.
     mesh = new Mesh();
     mesh.name = "TerrainMesh";
-    GetComponent<MeshFilter>().mesh = mesh;
+    GetComponent<MeshFilter>().sharedMesh = mesh;
 
     // Initialize origin.
     origin = transform.position;

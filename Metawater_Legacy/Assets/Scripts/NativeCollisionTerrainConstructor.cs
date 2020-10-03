@@ -3,9 +3,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-[ExecuteAlways]
 [RequireComponent(typeof(MeshFilter))]
-public class TerrainConstructor : MonoBehaviour {
+public class NativeCollisionTerrainConstructor : MonoBehaviour {
 
   [SerializeField]
   #pragma warning disable
@@ -30,7 +29,6 @@ public class TerrainConstructor : MonoBehaviour {
   void Awake() {
     // Initialize and set mesh.
     mesh = new Mesh();
-    mesh.name = "TerrainMesh";
     GetComponent<MeshFilter>().mesh = mesh;
 
     // Initialize origin.

@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-[ExecuteAlways]
 [RequireComponent(typeof(MeshFilter))]
 public class TerrainConstructor : MonoBehaviour {
 
@@ -30,7 +29,6 @@ public class TerrainConstructor : MonoBehaviour {
   void Awake() {
     // Initialize and set mesh.
     mesh = new Mesh();
-    mesh.name = "TerrainMesh";
     GetComponent<MeshFilter>().mesh = mesh;
 
     // Initialize origin.
@@ -86,8 +84,6 @@ public class TerrainConstructor : MonoBehaviour {
     mesh.vertices = vertices;
     mesh.triangles = triangles;
     mesh.RecalculateNormals();
-
-    GetComponent<MeshCollider>().sharedMesh = mesh;
 
     // Get bounds.
     Bounds modifiedBounds = mesh.bounds;

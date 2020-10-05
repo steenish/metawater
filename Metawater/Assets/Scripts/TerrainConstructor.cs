@@ -33,19 +33,12 @@ public class TerrainConstructor : MonoBehaviour {
     mesh.name = "TerrainMesh";
     GetComponent<MeshFilter>().sharedMesh = mesh;
 
-    // Initialize origin.
-    origin = transform.position;
-
     // Initialize height and width.
     height = heightmap.height;
     width = heightmap.width;
 
-    int[] allowedSides = { 9, 17, 33, 65, 129, 257, 513, 1025 };
-
-    // Place restrictions on height and width.
-    Debug.Assert(height == width && // Equal height and width.
-                 Array.Exists(allowedSides, element => element == height),
-                 "Incompatible heightmap dimensions.");
+		// Initialize origin.
+		origin = transform.position - Vector3.forward * (height - 1) * 0.5f * areaScale - Vector3.right * (width - 1) * 0.5f * areaScale;
 
     // Construct vertices.
     vertices = new Vector3[width*height];

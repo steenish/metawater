@@ -20,7 +20,7 @@ public class River : MonoBehaviour {
     [SerializeField]
     private float maximumRiverIterations;
 	[SerializeField]
-	private float rayDifferenceThreshold;
+	private float rayRatioThreshold; // = nextRayMagnitude / previousRayMagnitude. Maximum such ratio allowed without terminating lake exploration.
     [SerializeField]
     private float updateInterval;
 #pragma warning restore
@@ -91,11 +91,13 @@ public class River : MonoBehaviour {
 				// Calculate the number of sampling steps.
 				int samplingSteps = (int) Mathf.Ceil(totalSamplingRange / lakeSamplingDistance);
 
-				// Create arrays for ray hits from the previous and the current step.
-				RaycastHit[] previousHits = null;
-				RaycastHit[] currentHits = null;
-				List<int> qualifiedRays = new List<int>();
+				// Create arrays for ray hits from the current step.
+				RaycastHit[] hits = null;
 
+				// Create list for rays that qualify for breaking the lake exploration.
+				List<int> qualifiedRays = new List<int>();
+				
+				// Create flag for keeping track of early terminating of lake exploration.
 				bool terminateEarly = false;
 
 				for (int i = 0; i < samplingSteps && !terminateEarly; ++i) {
@@ -103,8 +105,7 @@ public class River : MonoBehaviour {
 					float sampledHeight = lakeSamplingDistance * (i + 1);
 					sampledHeight = (sampledHeight > totalSamplingRange) ? totalSamplingRange : sampledHeight;
 					Vector3 origin = startPoint + Vector3.up * sampledHeight;
-					previousHits = currentHits;
-					currentHits = new RaycastHit[numLakeRays];
+					hits = new RaycastHit[numLakeRays];
 
 					// Shoot rays outwards in the horizontal plane, record the hit positions for each ray.
 					for (int j = 0; j < numLakeRays; ++j) {
@@ -113,17 +114,22 @@ public class River : MonoBehaviour {
 						// Cast the ray and save the ray in the array, otherwise leave as default.
 						RaycastHit lakeHit;
 						if (Physics.Raycast(origin, Quaternion.Euler(0.0f, samplingAngle, 0.0f) * Vector3.forward, out lakeHit, rayLimit, terrainLayerMask)) {
-							currentHits[j] = lakeHit;
+							hits[j] = lakeHit;
 						}
+					}
 
-						// Compare the position for each ray with the position of the corresponding previous ray.
-						if (previousHits != null) {
-							// If the new position lies a lot further along the direction or if there was no new position,
-							// the overflow point has been surpassed.
-							if (previousHits[j].point == Vector3.zero || (previousHits[j].point - currentHits[j].point).magnitude > rayDifferenceThreshold) {
-								qualifiedRays.Add(j);
-								terminateEarly = true;
-							}
+					// Compare the position for each ray with the position of the previous ray.
+					// If the next position lies a lot further along the direction or if there was no new position,
+					// the overflow point has been surpassed.
+					for (int j = 0; j < hits.Length; ++j) {
+						Vector3 previousHit = hits[(j == 0) ? hits.Length - 1 : j - 1].point;
+						Vector3 thisHit = hits[j].point;
+
+						if (previousHit == Vector3.zero) {
+							continue; // We have already or will check this hit, just do not compare with it now.
+						} else if (thisHit == Vector3.zero || rayRatioThreshold * (previousHit - origin).magnitude < (thisHit - origin).magnitude) {
+							qualifiedRays.Add(j);
+							terminateEarly = true;
 						}
 					}
 
@@ -134,11 +140,25 @@ public class River : MonoBehaviour {
 					// Do a RaycastAll on this ray to find the new start as the second intersection.
 					// TODO TODO TODO!!! Create water surfaces for lakes.
 
+					// NOTE: THIS METHOD WILL NOT WORK, IT SEEMS. EXPLORE OTHER OPTIONS.
+					// PROPOSAL:
+					// Explore terrain samples along rays that are at the height of the source.
+					// Place origin at the source height above the last river position.
+					// In a number of directions in the horizontal plane away from the origin, start exploration.
+					// At a certain distance interval, shoot rays downwards to hit the terrain.
+					// When one ray hits the terrain lower than the previous, do binary search between that ray
+					// and the ray before the last (or at the origin, if fewer than three rays have been shot).
+					// Binary search finds the local maximum point.
+					// Select the lowest point found over all directions as the overflow point.
+
 					// Draw debug lines.
 					if (drawDebugLines) {
-						foreach (RaycastHit debugHit in currentHits) {
+						for (int j = 0; j < hits.Length; ++j) {
+							RaycastHit debugHit = hits[j];
 							if (!debugHit.point.Equals(Vector3.zero)) {
-								Debug.DrawLine(origin, debugHit.point, Color.white, Mathf.Infinity);
+								Debug.DrawLine(origin, debugHit.point, 
+									qualifiedRays.Contains(j) ? Color.red : Color.white,
+									Mathf.Infinity);
 							}
 						}
 					}

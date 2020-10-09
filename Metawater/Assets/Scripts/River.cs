@@ -16,6 +16,8 @@ public class River : MonoBehaviour {
 	[SerializeField]
 	private float lakeSamplingDistance;
 	[SerializeField]
+	private float lakeExplorationThreshold;
+	[SerializeField]
 	private int numLakeRays;
     [SerializeField]
     private float maximumRiverIterations;
@@ -46,7 +48,7 @@ public class River : MonoBehaviour {
         Vector3 tentativePosition = source.position;
         int numRiverIterations = 0;
 
-		float rayLimit = 2 * Mathf.Max(terrainMesh.bounds.size.x, terrainMesh.bounds.size.y);
+		float rayLimit = 2 * Mathf.Max(terrainMesh.bounds.size.z, Mathf.Max(terrainMesh.bounds.size.x, terrainMesh.bounds.size.y));
 
 		Physics.queriesHitBackfaces = true;
 
@@ -79,90 +81,44 @@ public class River : MonoBehaviour {
             } else if (Physics.Raycast(tentativePosition, Vector3.up, out hit, rayLimit, terrainLayerMask)) {
 				// The current tentative position is below the terrain, so a local minimum was found.
 				// This means there should be a lake here, up to the point where the lake would overflow.
-				// Explore upwards to find where the lake should overflow.
+				// Explore to find where the lake should overflow.
 
 				// Get the point on the river where the lake exploration starts.
 				Vector3 startPoint = positions[positions.Count - 1];
 
-				// Get maximum height as the first position height for bounding the lake exploration.
+				// Get maximum height as the source height for bounding the lake exploration, and use for origin.
 				float maximumHeight = positions[0].y;
-				float totalSamplingRange = maximumHeight - startPoint.y;
 
-				// Calculate the number of sampling steps.
-				int samplingSteps = (int) Mathf.Ceil(totalSamplingRange / lakeSamplingDistance);
+				// Place origin at the source height above the last river position.
+				Vector3 lakeOrigin = startPoint + Vector3.up;
 
-				// Create arrays for ray hits from the current step.
-				RaycastHit[] hits = null;
+				// A list for saving the found candidates for the overflow point.
+				List<Vector3> overflowPointCandidates = new List<Vector3>();
+				Vector3 overflowPoint = Vector3.up * Mathf.Infinity;
 
-				// Create list for rays that qualify for breaking the lake exploration.
-				List<int> qualifiedRays = new List<int>();
-				
-				// Create flag for keeping track of early terminating of lake exploration.
-				bool terminateEarly = false;
+				// In a number of directions in the horizontal plane away from the origin, start exploration.
+				for (int i = 0; i < numLakeRays; ++i) {
+					float samplingAngle = i * lakeRayAngle;
 
-				for (int i = 0; i < samplingSteps && !terminateEarly; ++i) {
-					// Move upwards a small distance and set the previous hits to the current hits.
-					float sampledHeight = lakeSamplingDistance * (i + 1);
-					sampledHeight = (sampledHeight > totalSamplingRange) ? totalSamplingRange : sampledHeight;
-					Vector3 origin = startPoint + Vector3.up * sampledHeight;
-					hits = new RaycastHit[numLakeRays];
+					Vector3 directionVector = Quaternion.Euler(0.0f, samplingAngle, 0.0f) * Vector3.forward;
 
-					// Shoot rays outwards in the horizontal plane, record the hit positions for each ray.
-					for (int j = 0; j < numLakeRays; ++j) {
-						float samplingAngle = j * lakeRayAngle;
+					// Cast a ray to find out maximum distance to explore to.
+					RaycastHit distanceRayHit;
+					Physics.Raycast(lakeOrigin, directionVector, out distanceRayHit, rayLimit, terrainLayerMask);
 
-						// Cast the ray and save the ray in the array, otherwise leave as default.
-						RaycastHit lakeHit;
-						if (Physics.Raycast(origin, Quaternion.Euler(0.0f, samplingAngle, 0.0f) * Vector3.forward, out lakeHit, rayLimit, terrainLayerMask)) {
-							hits[j] = lakeHit;
-						}
-					}
+					Vector3 overflowPointCandidate = RecursiveLakeExploration(0.0f, distanceRayHit.distance, lakeSamplingDistance, lakeOrigin, directionVector, rayLimit);
+				}
 
-					// Compare the position for each ray with the position of the previous ray.
-					// If the next position lies a lot further along the direction or if there was no new position,
-					// the overflow point has been surpassed.
-					for (int j = 0; j < hits.Length; ++j) {
-						Vector3 previousHit = hits[(j == 0) ? hits.Length - 1 : j - 1].point;
-						Vector3 thisHit = hits[j].point;
-
-						if (previousHit == Vector3.zero) {
-							continue; // We have already or will check this hit, just do not compare with it now.
-						} else if (thisHit == Vector3.zero || rayRatioThreshold * (previousHit - origin).magnitude < (thisHit - origin).magnitude) {
-							qualifiedRays.Add(j);
-							terminateEarly = true;
-						}
-					}
-
-					// TODOs
-					// For each of the rays that qualified for this, do binary search on the uncertain interval
-					// until the search interval is smaller than a threshold.
-					// The lowest height that was found is the overflow point.
-					// Do a RaycastAll on this ray to find the new start as the second intersection.
-					// TODO TODO TODO!!! Create water surfaces for lakes.
-
-					// NOTE: THIS METHOD WILL NOT WORK, IT SEEMS. EXPLORE OTHER OPTIONS.
-					// PROPOSAL:
-					// Explore terrain samples along rays that are at the height of the source.
-					// Place origin at the source height above the last river position.
-					// In a number of directions in the horizontal plane away from the origin, start exploration.
-					// At a certain distance interval, shoot rays downwards to hit the terrain.
-					// When one ray hits the terrain lower than the previous, do binary search between that ray
-					// and the ray before the last (or at the origin, if fewer than three rays have been shot).
-					// Binary search finds the local maximum point.
-					// Select the lowest point found over all directions as the overflow point.
-
-					// Draw debug lines.
-					if (drawDebugLines) {
-						for (int j = 0; j < hits.Length; ++j) {
-							RaycastHit debugHit = hits[j];
-							if (!debugHit.point.Equals(Vector3.zero)) {
-								Debug.DrawLine(origin, debugHit.point, 
-									qualifiedRays.Contains(j) ? Color.red : Color.white,
-									Mathf.Infinity);
-							}
-						}
+				// Select the lowest point found over all directions as the overflow point.
+				foreach (Vector3 candidate in overflowPointCandidates) {
+					if (candidate.y < overflowPoint.y) {
+						overflowPoint = candidate;
 					}
 				}
+
+				positions.Add(overflowPoint);
+
+				// TODO TODO TODO!!! Create water surfaces for lakes.
 			} else {
                 finished = true;
             }
@@ -180,4 +136,56 @@ public class River : MonoBehaviour {
             }
         }
     }
+
+	private Vector3 RecursiveLakeExploration(float minimumDistance, float maximumDistance, float samplingDistance, Vector3 lakeOrigin, Vector3 directionVector, float rayLimit) {
+		float distanceAlongDirection = minimumDistance;
+
+		// Base case: the interval is below the threshold.
+		if (maximumDistance - minimumDistance <= lakeExplorationThreshold) {
+			// Return the terrain hit point at the minimum distance.
+			Vector3 rayOrigin = lakeOrigin + directionVector * distanceAlongDirection;
+			RaycastHit terrainHit;
+			Physics.Raycast(rayOrigin, Vector3.down, out terrainHit, rayLimit, terrainLayerMask);
+			return terrainHit.point;
+		}
+
+		// Set up vectors for the three last hits with the terrain.
+		Vector3 previousHit = Vector3.zero; // The hit in the iteration before the last.
+		Vector3 lastHit = Vector3.zero;     // The hit in the last iteration.
+		Vector3 currentHit = Vector3.zero;  // The hit in the current iteration.
+
+		// Explore terrain samples along rays that are at the height of the source.
+		while (distanceAlongDirection > maximumDistance) {
+			distanceAlongDirection += samplingDistance;
+
+			// At a certain distance interval, shoot rays downwards to hit the terrain.
+			Vector3 rayOrigin = lakeOrigin + directionVector * distanceAlongDirection;
+			RaycastHit terrainHit;
+			if (Physics.Raycast(rayOrigin, Vector3.down, out terrainHit, rayLimit, terrainLayerMask)) {
+				// Update the terrain hits.
+				previousHit = lastHit;
+				lastHit = currentHit;
+				currentHit = terrainHit.point;
+
+				// Check if it is possible that an overflow point candidate is in the interval.
+				if (OverflowPointPossible(lastHit, currentHit)) {
+					// Recurse on the new interval.
+					float newMinDistance = Vector3.Project(previousHit - lakeOrigin, directionVector).magnitude;
+					float newMaxDistance = Vector3.Project(currentHit - lakeOrigin, directionVector).magnitude;
+					float newSamplingDistance = samplingDistance * ((newMaxDistance - newMinDistance) / (maximumDistance - minimumDistance));
+					return RecursiveLakeExploration(newMinDistance, newMaxDistance, samplingDistance, lakeOrigin, directionVector, rayLimit);
+				}
+			} else {
+				// If there was no hit, terminate the search along the direction.
+				break;
+			}
+		}
+		// Nothing found, retur the vector infinitely far up.
+		return Vector3.up * Mathf.Infinity;
+	}
+
+	private bool OverflowPointPossible(Vector3 secondHit, Vector3 thirdHit) {
+		// It is only possible that there is an overflow point if the second hit is higher than the third hit.
+		return secondHit.y > thirdHit.y;
+	}
 }

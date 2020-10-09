@@ -32,6 +32,8 @@ public class TerrainConstructor : MonoBehaviour {
 		mesh = new Mesh();
 		mesh.name = "TerrainMesh";
 		GetComponent<MeshFilter>().sharedMesh = mesh;
+
+		UpdateMesh();
 	}
 
 	private void OnValidate() {
@@ -81,15 +83,14 @@ public class TerrainConstructor : MonoBehaviour {
 		}
 
 		// Update mesh.
-		mesh.Clear();
-		mesh.vertices = vertices;
-		mesh.triangles = triangles;
-		mesh.RecalculateNormals();
-
-		GetComponent<MeshCollider>().sharedMesh = mesh;
+		MeshFilter meshFilter = GetComponent<MeshFilter>();
+		meshFilter.sharedMesh.Clear();
+		meshFilter.sharedMesh.vertices = vertices;
+		meshFilter.sharedMesh.triangles = triangles;
+		meshFilter.sharedMesh.RecalculateNormals();
 
 		// Get bounds.
-		Bounds modifiedBounds = mesh.bounds;
+		Bounds modifiedBounds = meshFilter.sharedMesh.bounds;
 		Vector3 heightPoint = new Vector3(modifiedBounds.center.x, modifiedBounds.center.y + boundsHeight, modifiedBounds.center.z);
 		modifiedBounds.Encapsulate(heightPoint);
 		Vector3 negativeHeightPoint = new Vector3(modifiedBounds.center.x, modifiedBounds.center.y - boundsHeight, modifiedBounds.center.z);

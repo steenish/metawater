@@ -132,7 +132,7 @@ GameObject:
   - component: {fileID: 570612211}
   - component: {fileID: 570612210}
   m_Layer: 0
-  m_Name: Directional Light
+  m_Name: DirectionalLight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -459,7 +459,7 @@ Mesh:
     offset: 0
     size: 0
     path: 
---- !u!43 &1335654108
+--- !u!43 &1190015606
 Mesh:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -702,7 +702,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1413359601}
-  m_Mesh: {fileID: 1335654108}
+  m_Mesh: {fileID: 1190015606}
 --- !u!114 &1413359605
 MonoBehaviour:
   m_ObjectHideFlags: 0

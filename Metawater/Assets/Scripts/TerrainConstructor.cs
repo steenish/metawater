@@ -15,17 +15,9 @@ public class TerrainConstructor : MonoBehaviour {
 	private float areaScale = 0.1f;
 	[SerializeField]
 	private float heightScale = 1.0f;
-
-	public static readonly float boundsHeight = 1.0f;
-
-	public Bounds terrainBounds { get; private set; }
-
-	private int height;
-	private int width;
-	private int[] triangles;
+	
 	private Mesh mesh;
-	private Vector3[] vertices;
-	private Vector3 origin;
+	private UniformGrid terrainGrid;
 
 	void Awake() {
 		// Initialize and set mesh.
@@ -33,52 +25,70 @@ public class TerrainConstructor : MonoBehaviour {
 		mesh.name = "TerrainMesh";
 		GetComponent<MeshFilter>().sharedMesh = mesh;
 
+		ExtractHeightMapData();
 		UpdateMesh();
 	}
 
 	private void OnValidate() {
+		ExtractHeightMapData();
 		UpdateMesh();
 	}
 
-	private void UpdateMesh() {
+	private void ExtractHeightMapData() {
 		// Initialize height and width.
-		height = heightmap.height;
-		width = heightmap.width;
+		int height = heightmap.height;
+		int width = heightmap.width;
 
+		// Extract colors from texture.
+		Color32[] pixelData = heightmap.GetPixels32();
+
+		// Initialize a new uniform grid.
+		Vector3 minPoint = transform.position - Vector3.forward * (height - 1) * 0.5f * areaScale - Vector3.right * (width - 1) * 0.5f * areaScale;
+		Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) * 0.5f * areaScale + Vector3.right * (width - 1) * 0.5f * areaScale;
+		terrainGrid = new UniformGrid(minPoint, maxPoint, width, 1, height); // X is width, Z is height.
+
+		for (int k = 0; k < terrainGrid.numPointsZ; ++k) { // Rows.
+			for (int i = 0; i < terrainGrid.numPointsX; ++i) { // Columns.
+				// Extract height data from the red channel. Red channel should be equal to
+				// the others, and between 0 and 255, so divide to get value between 0 and 1.
+				float color = pixelData[k * width + i].r / 255.0f;
+				terrainGrid[i, 0, k] = color;
+			}
+		}
+	}
+
+	private void UpdateMesh() {
 		// Initialize origin.
-		origin = transform.position - Vector3.forward * (height - 1) * 0.5f * areaScale - Vector3.right * (width - 1) * 0.5f * areaScale;
+		Vector3 origin = terrainGrid.minPoint;
 
 		// Construct vertices.
-		vertices = new Vector3[width * height];
-		Color32[] pixelData = heightmap.GetPixels32();
-		for (int i = 0; i < height; ++i) { // For each row.
-			for (int j = 0; j < width; ++j) { // For each column.
-											  // Extract height data from the red channel. Red channel should be equal to
-											  // the others, and between 0 and 255, so divide to get value between 0 and 1.
-				float color = pixelData[i * width + j].r / 255.0f;
+		Vector3[] vertices = new Vector3[terrainGrid.numPointsZ * terrainGrid.numPointsX];
+		
+		for (int k = 0; k < terrainGrid.numPointsZ; ++k) { // Rows.
+			for (int i = 0; i < terrainGrid.numPointsX; ++i) { // Columns.
 				// Set the vertex position as the offset from the origin, with y-value offset
-				// according to the color in the heightmap and the desired scale.
-				vertices[i * width + j] = new Vector3(origin.x + (j * areaScale), origin.y + (color * heightScale), origin.z + (i * areaScale));
+				// according to the terrain grid value and the desired scale.
+				vertices[k * terrainGrid.numPointsX + i] = new Vector3(origin.x + (i * areaScale), origin.y + (terrainGrid[i, 0, k] * heightScale), origin.z + (k * areaScale)); ;
 			}
 		}
 
 		// Construct triangles.
 		// Size of triangles array:
 		// number of gridcells * 2 triangles per grid cell * 3 vertex indices per triangle
-		triangles = new int[6 * (height - 1) * (width - 1)];
+		int[] triangles = new int[6 * (terrainGrid.numPointsZ - 1) * (terrainGrid.numPointsX - 1)];
 		int triangleOffset = 0;
-		for (int i = 0; i < (height - 1); ++i) { // For each row of grid cells.
-			for (int j = 0; j < (width - 1); ++j) { // For each column of grid cells.
-				int cellOffset = i * width + j;
+		for (int k = 0; k < (terrainGrid.numPointsZ - 1); ++k) { // For each row of grid cells.
+			for (int i = 0; i < (terrainGrid.numPointsX - 1); ++i) { // For each column of grid cells.
+				int cellOffset = k * terrainGrid.numPointsX + i;
 				// Lower left triangle of grid cell (clockwise assigned).
 				triangles[triangleOffset++] = cellOffset;
-				triangles[triangleOffset++] = cellOffset + width;
+				triangles[triangleOffset++] = cellOffset + terrainGrid.numPointsX;
 				triangles[triangleOffset++] = cellOffset + 1;
 
 				// Upper right triangle of grid cell (clockwise assigned).
 				triangles[triangleOffset++] = cellOffset + 1;
-				triangles[triangleOffset++] = cellOffset + width;
-				triangles[triangleOffset++] = cellOffset + width + 1;
+				triangles[triangleOffset++] = cellOffset + terrainGrid.numPointsX;
+				triangles[triangleOffset++] = cellOffset + terrainGrid.numPointsX + 1;
 			}
 		}
 
@@ -88,13 +98,5 @@ public class TerrainConstructor : MonoBehaviour {
 		meshFilter.sharedMesh.vertices = vertices;
 		meshFilter.sharedMesh.triangles = triangles;
 		meshFilter.sharedMesh.RecalculateNormals();
-
-		// Get bounds.
-		Bounds modifiedBounds = meshFilter.sharedMesh.bounds;
-		Vector3 heightPoint = new Vector3(modifiedBounds.center.x, modifiedBounds.center.y + boundsHeight, modifiedBounds.center.z);
-		modifiedBounds.Encapsulate(heightPoint);
-		Vector3 negativeHeightPoint = new Vector3(modifiedBounds.center.x, modifiedBounds.center.y - boundsHeight, modifiedBounds.center.z);
-		modifiedBounds.Encapsulate(negativeHeightPoint);
-		terrainBounds = modifiedBounds;
 	}
 }

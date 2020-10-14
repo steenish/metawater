@@ -17,7 +17,8 @@ public class TerrainConstructor : MonoBehaviour {
 	private float heightScale = 1.0f;
 	
 	private Mesh mesh;
-	private UniformGrid terrainGrid;
+	private UniformGrid<float> terrainGrid;
+	private UniformGrid<Vector2> gradientGrid;
 
 	void Awake() {
 		// Initialize and set mesh.
@@ -25,12 +26,16 @@ public class TerrainConstructor : MonoBehaviour {
 		mesh.name = "TerrainMesh";
 		GetComponent<MeshFilter>().sharedMesh = mesh;
 
-		ExtractHeightMapData();
-		UpdateMesh();
+		UpdateTerrain();
 	}
 
 	private void OnValidate() {
+		UpdateTerrain();
+	}
+
+	private void UpdateTerrain() {
 		ExtractHeightMapData();
+		CalculateGradient();
 		UpdateMesh();
 	}
 
@@ -45,7 +50,7 @@ public class TerrainConstructor : MonoBehaviour {
 		// Initialize a new uniform grid.
 		Vector3 minPoint = transform.position - Vector3.forward * (height - 1) * 0.5f * areaScale - Vector3.right * (width - 1) * 0.5f * areaScale;
 		Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) * 0.5f * areaScale + Vector3.right * (width - 1) * 0.5f * areaScale;
-		terrainGrid = new UniformGrid(minPoint, maxPoint, width, 1, height); // X is width, Z is height.
+		terrainGrid = new UniformGrid<float>(minPoint, maxPoint, width, 1, height); // X is width, Z is height.
 
 		for (int k = 0; k < terrainGrid.numPointsZ; ++k) { // Rows.
 			for (int i = 0; i < terrainGrid.numPointsX; ++i) { // Columns.
@@ -53,6 +58,81 @@ public class TerrainConstructor : MonoBehaviour {
 				// the others, and between 0 and 255, so divide to get value between 0 and 1.
 				float color = pixelData[k * width + i].r / 255.0f;
 				terrainGrid[i, 0, k] = color;
+			}
+		}
+	}
+
+	private void CalculateGradient() {
+		// For each grid point in the terrain grid, do convolution using Sobel operator.
+		// Values for points that are out of range are treated as the center value.
+
+		// Initialize grid as a uniform grid of 2D vectors with the same size and number of points as the terrain grid.
+		gradientGrid = new UniformGrid<Vector2>(terrainGrid.minPoint, terrainGrid.maxPoint, terrainGrid.numPointsX, terrainGrid.numPointsY, terrainGrid.numPointsZ);
+
+		for (int k = 0; k < terrainGrid.numPointsZ; ++k) {
+			for (int i = 0; i < terrainGrid.numPointsX; ++i) {
+				// Extract the scalars.
+				float[,] scalars = new float[3, 3];
+
+				for (int a = 0; a < 3; ++a) {
+					// Indicates whether to subtract 1, add 0 or add 1 to the i index.
+					int iTerm = a - 1;
+					for (int b = 0; b < 3; ++b) {
+						// Indicates whether to subtract 1, add 0 or add 1 to the k index.
+						int kTerm = b - 1;
+						
+						// Try to access the scalar at the index. If at an edge of the grid, exception is thrown and scalar set to NaN.
+						try {
+							scalars[a, b] = terrainGrid[i + iTerm, 0, k + kTerm];
+						} catch (IndexOutOfRangeException) {
+							scalars[a, b] = float.NaN;
+						}
+					}
+				}
+
+				// The x-kernel takes the form:
+				//  1, 0, -1]
+				//  2, 0, -2
+				// [1, 0, -1
+				int[,] xKernel = new int[,] { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
+
+				// The z-kernel takes the form:
+				//  -1, -2, -1]
+				//   0,  0,  0
+				// [ 1,  2,  1
+				int[,] zKernel = new int[,] { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
+
+				float partialX = 0.0f;
+				float partialZ = 0.0f;
+
+				for (int a = 0; a < 3; ++a) {
+					for (int b = 0; b < 3; ++b) {
+						float scalar = scalars[a, b];
+
+						// If scalar was not defined because it was out of range, set it to the scalar at the center of the kernel.
+						if (scalar == float.NaN) {
+							scalar = scalars[1, 1];
+						}
+						
+						partialX += xKernel[a, b] * scalar;
+						partialZ += zKernel[a, b] * scalar;
+					}
+				}
+
+				gradientGrid[i, 0, k] = new Vector2(partialX, partialZ);
+			}
+		}
+
+		// Visualize the gradient field.
+		for (int k = 0; k < gradientGrid.numPointsZ; ++k) {
+			for (int i = 0; i < gradientGrid.numPointsX; ++i) {
+				Vector2 gradient = gradientGrid[i, 0, k];
+				Vector3 gradient3D = (new Vector3(gradient.x, 0.0f, gradient.y)).normalized * 0.2f;
+				Vector3 position = gradientGrid.GridPointCoordinates(i, 0, k); // TODO: Fix bug where lines appear at different heights for some reason.
+				Debug.Log(position);
+				position.y = terrainGrid[i, 0, k];
+				Debug.DrawLine(position, position + gradient3D, Color.white, Mathf.Infinity);
+				Debug.DrawLine(position + gradient3D, position + gradient3D + Vector3.right * 0.05f, Color.white, Mathf.Infinity);
 			}
 		}
 	}

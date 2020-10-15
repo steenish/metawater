@@ -52,4 +52,12 @@ public class HelperFunctions {
 		Vector3 vector2 = InterpolateBilinear(v100, v101, v110, v111, t);
 		return InterpolateLinear(vector1, vector2, t);
 	}
+
+	public static Vector2 V3ToHV2(Vector3 v) {
+		return new Vector2(v.x, v.z);
+	}
+
+	public static Vector3 HV2ToV3(Vector2 v) {
+		return new Vector3(v.x, 0.0f, v.y);
+	}
 }

@@ -3,34 +3,69 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+using static HelperFunctions;
+
 [ExecuteAlways]
 [RequireComponent(typeof(MeshFilter))]
 public class TerrainConstructor : MonoBehaviour {
+	// TODO: Figure out how to scale the grids and not affect the vertices, kind of reverse-scale the vertices maybe?
 
 	[SerializeField]
 	#pragma warning disable
 	private Texture2D heightmap;
-	#pragma warning restore
 	[SerializeField]
-	private float areaScale = 0.1f;
+	private bool visualizeGradient;
 	[SerializeField]
-	private float heightScale = 1.0f;
-	
-	private Mesh mesh;
-	private UniformGrid<float> terrainGrid;
-	private UniformGrid<Vector2> gradientGrid;
+	private bool update;
+#pragma warning restore
 
+	private Mesh mesh;
+	private UniformGrid2D<float> terrainGrid;
+	private UniformGrid2D<Vector2> gradientGrid;
+	
 	void Awake() {
 		// Initialize and set mesh.
 		mesh = new Mesh();
 		mesh.name = "TerrainMesh";
 		GetComponent<MeshFilter>().sharedMesh = mesh;
 
+		update = false;
+
 		UpdateTerrain();
 	}
 
 	private void OnValidate() {
-		UpdateTerrain();
+		if (update) {
+			UpdateTerrain();
+
+			update = false;
+		}
+	}
+
+	private void OnDrawGizmos() {
+		if (!visualizeGradient || gradientGrid == null) return;
+
+		// Visualize the gradient field.
+		Vector3[] vertices = GetComponent<MeshFilter>().sharedMesh.vertices;
+		float vizScale = new Vector2(transform.localScale.x, transform.localScale.z).magnitude;
+
+		for (int j = 0; j < gradientGrid.numPointsY; ++j) {
+			for (int i = 0; i < gradientGrid.numPointsX; ++i) {
+				Vector3 gradient = HV2ToV3(gradientGrid[i, j]).normalized;
+				Vector3 position = Vector3.Scale(vertices[j * terrainGrid.numPointsX + i], transform.localScale);
+				position.y = terrainGrid[i, j] * transform.localScale.y;
+				Debug.DrawLine(position, position + gradient * vizScale, Color.white, Time.deltaTime);
+				Gizmos.DrawSphere(position + gradient * vizScale, vizScale * 0.3f);
+			}
+		}
+
+		//Vector3 minPoint = transform.position - Vector3.forward * (heightmap.height - 1) * transform.localScale.z - Vector3.right * (heightmap.width - 1) * transform.localScale.x;
+		//Vector3 maxPoint = transform.position + Vector3.forward * (heightmap.height - 1) * transform.localScale.z + Vector3.right * (heightmap.width - 1) * transform.localScale.x;
+		Vector3 minPoint = transform.position - Vector3.forward * (heightmap.height - 1) - Vector3.right * (heightmap.width - 1);
+		Vector3 maxPoint = transform.position + Vector3.forward * (heightmap.height - 1) + Vector3.right * (heightmap.width - 1);
+
+		Gizmos.DrawSphere(minPoint, 2);
+		Gizmos.DrawSphere(maxPoint, 2);
 	}
 
 	private void UpdateTerrain() {
@@ -48,16 +83,18 @@ public class TerrainConstructor : MonoBehaviour {
 		Color32[] pixelData = heightmap.GetPixels32();
 
 		// Initialize a new uniform grid.
-		Vector3 minPoint = transform.position - Vector3.forward * (height - 1) * 0.5f * areaScale - Vector3.right * (width - 1) * 0.5f * areaScale;
-		Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) * 0.5f * areaScale + Vector3.right * (width - 1) * 0.5f * areaScale;
-		terrainGrid = new UniformGrid<float>(minPoint, maxPoint, width, 1, height); // X is width, Z is height.
+		//Vector3 minPoint = transform.position - Vector3.forward * (height - 1) * transform.localScale.z - Vector3.right * (width - 1) * transform.localScale.x;
+		//Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) * transform.localScale.z + Vector3.right * (width - 1) * transform.localScale.x;
+		Vector3 minPoint = transform.position - Vector3.forward * (height - 1) - Vector3.right * (width - 1);
+		Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) + Vector3.right * (width - 1);
+		terrainGrid = new UniformGrid2D<float>(V3ToHV2(minPoint), V3ToHV2(maxPoint), width, height); // X is width, Z is height.
 
-		for (int k = 0; k < terrainGrid.numPointsZ; ++k) { // Rows.
+		for (int j = 0; j < terrainGrid.numPointsY; ++j) { // Rows.
 			for (int i = 0; i < terrainGrid.numPointsX; ++i) { // Columns.
 				// Extract height data from the red channel. Red channel should be equal to
 				// the others, and between 0 and 255, so divide to get value between 0 and 1.
-				float color = pixelData[k * width + i].r / 255.0f;
-				terrainGrid[i, 0, k] = color;
+				float color = pixelData[j * width + i].r / 255.0f;
+				terrainGrid[i, j] = color;
 			}
 		}
 	}
@@ -67,9 +104,9 @@ public class TerrainConstructor : MonoBehaviour {
 		// Values for points that are out of range are treated as the center value.
 
 		// Initialize grid as a uniform grid of 2D vectors with the same size and number of points as the terrain grid.
-		gradientGrid = new UniformGrid<Vector2>(terrainGrid.minPoint, terrainGrid.maxPoint, terrainGrid.numPointsX, terrainGrid.numPointsY, terrainGrid.numPointsZ);
+		gradientGrid = new UniformGrid2D<Vector2>(terrainGrid.minPoint, terrainGrid.maxPoint, terrainGrid.numPointsX, terrainGrid.numPointsY);
 
-		for (int k = 0; k < terrainGrid.numPointsZ; ++k) {
+		for (int j = 0; j < terrainGrid.numPointsY; ++j) {
 			for (int i = 0; i < terrainGrid.numPointsX; ++i) {
 				// Extract the scalars.
 				float[,] scalars = new float[3, 3];
@@ -79,11 +116,11 @@ public class TerrainConstructor : MonoBehaviour {
 					int iTerm = a - 1;
 					for (int b = 0; b < 3; ++b) {
 						// Indicates whether to subtract 1, add 0 or add 1 to the k index.
-						int kTerm = b - 1;
+						int jTerm = b - 1;
 						
 						// Try to access the scalar at the index. If at an edge of the grid, exception is thrown and scalar set to NaN.
 						try {
-							scalars[a, b] = terrainGrid[i + iTerm, 0, k + kTerm];
+							scalars[a, b] = terrainGrid[i + iTerm, j + jTerm];
 						} catch (IndexOutOfRangeException) {
 							scalars[a, b] = float.NaN;
 						}
@@ -119,47 +156,32 @@ public class TerrainConstructor : MonoBehaviour {
 					}
 				}
 
-				gradientGrid[i, 0, k] = new Vector2(partialX, partialZ);
-			}
-		}
-
-		// Visualize the gradient field.
-		for (int k = 0; k < gradientGrid.numPointsZ; ++k) {
-			for (int i = 0; i < gradientGrid.numPointsX; ++i) {
-				Vector2 gradient = gradientGrid[i, 0, k];
-				Vector3 gradient3D = (new Vector3(gradient.x, 0.0f, gradient.y)).normalized * 0.2f;
-				Vector3 position = gradientGrid.GridPointCoordinates(i, 0, k); // TODO: Fix bug where lines appear at different heights for some reason.
-				Debug.Log(position);
-				position.y = terrainGrid[i, 0, k];
-				Debug.DrawLine(position, position + gradient3D, Color.white, Mathf.Infinity);
-				Debug.DrawLine(position + gradient3D, position + gradient3D + Vector3.right * 0.05f, Color.white, Mathf.Infinity);
+				gradientGrid[i, j] = new Vector2(partialX, partialZ);
 			}
 		}
 	}
 
 	private void UpdateMesh() {
-		// Initialize origin.
-		Vector3 origin = terrainGrid.minPoint;
-
 		// Construct vertices.
-		Vector3[] vertices = new Vector3[terrainGrid.numPointsZ * terrainGrid.numPointsX];
-		
-		for (int k = 0; k < terrainGrid.numPointsZ; ++k) { // Rows.
-			for (int i = 0; i < terrainGrid.numPointsX; ++i) { // Columns.
+		Vector3[] vertices = new Vector3[terrainGrid.numPointsX * terrainGrid.numPointsY];
+		for (int j = 0; j < terrainGrid.numPointsY; ++j) {
+			for (int i = 0; i < terrainGrid.numPointsX; ++i) {
 				// Set the vertex position as the offset from the origin, with y-value offset
 				// according to the terrain grid value and the desired scale.
-				vertices[k * terrainGrid.numPointsX + i] = new Vector3(origin.x + (i * areaScale), origin.y + (terrainGrid[i, 0, k] * heightScale), origin.z + (k * areaScale)); ;
+				vertices[j * terrainGrid.numPointsX + i] = HV2ToV3(terrainGrid.GridPointCoordinates(i, j)) + transform.up * terrainGrid[i, j];
+
+				//Debug.Log("(i,j) = (" + i + "," + j + "), vertices[j * terrainGrid.numPointsX + i] = " + vertices[j * terrainGrid.numPointsX + i]);
 			}
 		}
 
 		// Construct triangles.
 		// Size of triangles array:
 		// number of gridcells * 2 triangles per grid cell * 3 vertex indices per triangle
-		int[] triangles = new int[6 * (terrainGrid.numPointsZ - 1) * (terrainGrid.numPointsX - 1)];
+		int[] triangles = new int[6 * (terrainGrid.numPointsY - 1) * (terrainGrid.numPointsX - 1)];
 		int triangleOffset = 0;
-		for (int k = 0; k < (terrainGrid.numPointsZ - 1); ++k) { // For each row of grid cells.
+		for (int j = 0; j < (terrainGrid.numPointsY - 1); ++j) { // For each row of grid cells.
 			for (int i = 0; i < (terrainGrid.numPointsX - 1); ++i) { // For each column of grid cells.
-				int cellOffset = k * terrainGrid.numPointsX + i;
+				int cellOffset = j * terrainGrid.numPointsX + i;
 				// Lower left triangle of grid cell (clockwise assigned).
 				triangles[triangleOffset++] = cellOffset;
 				triangles[triangleOffset++] = cellOffset + terrainGrid.numPointsX;
@@ -172,11 +194,13 @@ public class TerrainConstructor : MonoBehaviour {
 			}
 		}
 
-		// Update mesh.
+		// Update mesh and mesh collider.
 		MeshFilter meshFilter = GetComponent<MeshFilter>();
+		MeshCollider meshCollider = GetComponent<MeshCollider>();
 		meshFilter.sharedMesh.Clear();
 		meshFilter.sharedMesh.vertices = vertices;
 		meshFilter.sharedMesh.triangles = triangles;
 		meshFilter.sharedMesh.RecalculateNormals();
+		meshCollider.sharedMesh = meshFilter.sharedMesh;
 	}
 }

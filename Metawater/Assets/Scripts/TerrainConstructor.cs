@@ -8,13 +8,15 @@ using static HelperFunctions;
 [ExecuteAlways]
 [RequireComponent(typeof(MeshFilter))]
 public class TerrainConstructor : MonoBehaviour {
-	// TODO: Figure out how to scale the grids and not affect the vertices, kind of reverse-scale the vertices maybe?
+	// TODO: There might be something wrong with the gradients, they do not look completely right. Verify this somehow.
 
 	[SerializeField]
 	#pragma warning disable
 	private Texture2D heightmap;
 	[SerializeField]
 	private bool visualizeGradient;
+	[SerializeField]
+	private bool visualizeGrid;
 	[SerializeField]
 	private bool update;
 #pragma warning restore
@@ -43,29 +45,29 @@ public class TerrainConstructor : MonoBehaviour {
 	}
 
 	private void OnDrawGizmos() {
-		if (!visualizeGradient || gradientGrid == null) return;
+		if (visualizeGrid && terrainGrid != null) {
+			// Visualize the terrain grid.
+			terrainGrid.Visualize();
 
-		// Visualize the gradient field.
-		Vector3[] vertices = GetComponent<MeshFilter>().sharedMesh.vertices;
-		float vizScale = new Vector2(transform.localScale.x, transform.localScale.z).magnitude;
-
-		for (int j = 0; j < gradientGrid.numPointsY; ++j) {
-			for (int i = 0; i < gradientGrid.numPointsX; ++i) {
-				Vector3 gradient = HV2ToV3(gradientGrid[i, j]).normalized;
-				Vector3 position = Vector3.Scale(vertices[j * terrainGrid.numPointsX + i], transform.localScale);
-				position.y = terrainGrid[i, j] * transform.localScale.y;
-				Debug.DrawLine(position, position + gradient * vizScale, Color.white, Time.deltaTime);
-				Gizmos.DrawSphere(position + gradient * vizScale, vizScale * 0.3f);
-			}
+			Gizmos.DrawSphere(HV2ToV3(terrainGrid.minPoint), 2);
+			Gizmos.DrawSphere(HV2ToV3(terrainGrid.maxPoint), 2);
 		}
 
-		//Vector3 minPoint = transform.position - Vector3.forward * (heightmap.height - 1) * transform.localScale.z - Vector3.right * (heightmap.width - 1) * transform.localScale.x;
-		//Vector3 maxPoint = transform.position + Vector3.forward * (heightmap.height - 1) * transform.localScale.z + Vector3.right * (heightmap.width - 1) * transform.localScale.x;
-		Vector3 minPoint = transform.position - Vector3.forward * (heightmap.height - 1) - Vector3.right * (heightmap.width - 1);
-		Vector3 maxPoint = transform.position + Vector3.forward * (heightmap.height - 1) + Vector3.right * (heightmap.width - 1);
+		if (visualizeGradient && gradientGrid != null) {
+			// Visualize the gradient field.
+			Vector3[] vertices = GetComponent<MeshFilter>().sharedMesh.vertices;
+			float vizScale = new Vector2(transform.localScale.x, transform.localScale.z).magnitude;
 
-		Gizmos.DrawSphere(minPoint, 2);
-		Gizmos.DrawSphere(maxPoint, 2);
+			for (int j = 0; j < gradientGrid.numPointsY; ++j) {
+				for (int i = 0; i < gradientGrid.numPointsX; ++i) {
+					Vector3 gradient = HV2ToV3(gradientGrid[i, j]).normalized;
+					Vector3 position = Vector3.Scale(vertices[j * terrainGrid.numPointsX + i], transform.localScale);
+					position.y = terrainGrid[i, j] * transform.localScale.y;
+					Debug.DrawLine(position, position + gradient * vizScale, Color.white, Time.deltaTime);
+					Gizmos.DrawSphere(position + gradient * vizScale, vizScale * 0.3f);
+				}
+			}
+		}
 	}
 
 	private void UpdateTerrain() {
@@ -83,10 +85,10 @@ public class TerrainConstructor : MonoBehaviour {
 		Color32[] pixelData = heightmap.GetPixels32();
 
 		// Initialize a new uniform grid.
-		//Vector3 minPoint = transform.position - Vector3.forward * (height - 1) * transform.localScale.z - Vector3.right * (width - 1) * transform.localScale.x;
-		//Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) * transform.localScale.z + Vector3.right * (width - 1) * transform.localScale.x;
-		Vector3 minPoint = transform.position - Vector3.forward * (height - 1) - Vector3.right * (width - 1);
-		Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) + Vector3.right * (width - 1);
+		Vector3 minPoint = transform.position - Vector3.forward * (height - 1) * transform.localScale.z - Vector3.right * (width - 1) * transform.localScale.x;
+		Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) * transform.localScale.z + Vector3.right * (width - 1) * transform.localScale.x;
+		//Vector3 minPoint = transform.position - Vector3.forward * (height - 1) - Vector3.right * (width - 1);
+		//Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) + Vector3.right * (width - 1);
 		terrainGrid = new UniformGrid2D<float>(V3ToHV2(minPoint), V3ToHV2(maxPoint), width, height); // X is width, Z is height.
 
 		for (int j = 0; j < terrainGrid.numPointsY; ++j) { // Rows.
@@ -163,12 +165,14 @@ public class TerrainConstructor : MonoBehaviour {
 
 	private void UpdateMesh() {
 		// Construct vertices.
+		// Calculate inverse scaling.
+		Vector2 inverseScale = new Vector2(1 / transform.localScale.x, 1 / transform.localScale.z);
 		Vector3[] vertices = new Vector3[terrainGrid.numPointsX * terrainGrid.numPointsY];
 		for (int j = 0; j < terrainGrid.numPointsY; ++j) {
 			for (int i = 0; i < terrainGrid.numPointsX; ++i) {
 				// Set the vertex position as the offset from the origin, with y-value offset
 				// according to the terrain grid value and the desired scale.
-				vertices[j * terrainGrid.numPointsX + i] = HV2ToV3(terrainGrid.GridPointCoordinates(i, j)) + transform.up * terrainGrid[i, j];
+				vertices[j * terrainGrid.numPointsX + i] = HV2ToV3(Vector2.Scale(terrainGrid.GridPointCoordinates(i, j), inverseScale)) + transform.up * terrainGrid[i, j];
 
 				//Debug.Log("(i,j) = (" + i + "," + j + "), vertices[j * terrainGrid.numPointsX + i] = " + vertices[j * terrainGrid.numPointsX + i]);
 			}

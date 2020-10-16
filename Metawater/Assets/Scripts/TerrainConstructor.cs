@@ -9,14 +9,19 @@ using static HelperFunctions;
 [RequireComponent(typeof(MeshFilter))]
 public class TerrainConstructor : MonoBehaviour {
 	// TODO: There might be something wrong with the gradients, they do not look completely right. Verify this somehow.
+	// TODO: Write custom inspector for terrain constructor.
 
 	[SerializeField]
 	#pragma warning disable
 	private Texture2D heightmap;
 	[SerializeField]
+	private bool visualizeGrid;
+	[SerializeField]
 	private bool visualizeGradient;
 	[SerializeField]
-	private bool visualizeGrid;
+	private bool visualizeGradientMagnitude;
+	[SerializeField]
+	private Gradient gradientMagnitudeTransferFunction;
 	[SerializeField]
 	private bool update;
 #pragma warning restore
@@ -60,11 +65,23 @@ public class TerrainConstructor : MonoBehaviour {
 
 			for (int j = 0; j < gradientGrid.numPointsY; ++j) {
 				for (int i = 0; i < gradientGrid.numPointsX; ++i) {
-					Vector3 gradient = HV2ToV3(gradientGrid[i, j]).normalized;
-					Vector3 position = Vector3.Scale(vertices[j * terrainGrid.numPointsX + i], transform.localScale);
-					position.y = terrainGrid[i, j] * transform.localScale.y;
-					Debug.DrawLine(position, position + gradient * vizScale, Color.white, Time.deltaTime);
-					Gizmos.DrawSphere(position + gradient * vizScale, vizScale * 0.3f);
+					Vector3 gradient = HV2ToV3(gradientGrid[i, j]);
+
+					Color color = Color.white;
+					if (visualizeGradientMagnitude) {
+						float t = gradient.sqrMagnitude;
+						color = gradientMagnitudeTransferFunction.Evaluate(t);
+					}
+
+					gradient = gradient.normalized;
+					Vector3 startPosition = Vector3.Scale(vertices[j * terrainGrid.numPointsX + i], transform.localScale);
+					startPosition.y = terrainGrid[i, j] * transform.localScale.y;
+					Vector3 offset = gradient * vizScale;
+					Vector3 endPosition = startPosition + offset;
+					Vector3 headOffset = new Vector3(offset.z, offset.y, -offset.x) * 0.3f;
+					Debug.DrawLine(startPosition, endPosition, color, Time.deltaTime);
+					Debug.DrawLine(endPosition, endPosition + (headOffset - offset) * 0.3f, color, Time.deltaTime);
+					Debug.DrawLine(endPosition, endPosition + (-headOffset - offset) * 0.3f, color, Time.deltaTime);
 				}
 			}
 		}
@@ -147,9 +164,9 @@ public class TerrainConstructor : MonoBehaviour {
 				for (int a = 0; a < 3; ++a) {
 					for (int b = 0; b < 3; ++b) {
 						float scalar = scalars[a, b];
-
+						
 						// If scalar was not defined because it was out of range, set it to the scalar at the center of the kernel.
-						if (scalar == float.NaN) {
+						if (float.IsNaN(scalar)) {
 							scalar = scalars[1, 1];
 						}
 						

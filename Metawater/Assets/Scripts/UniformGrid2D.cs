@@ -10,7 +10,7 @@ public class UniformGrid2D<T>  {
 	public Vector2 minPoint { get; private set; }
 	public Vector2 maxPoint { get; private set; }
 	
-	private T[] grid;
+	private T[,] grid;
 
 	public UniformGrid2D(Vector2 minPoint, Vector2 maxPoint, int numPointsX, int numPointsY) {
 		if (maxPoint.x < minPoint.x || maxPoint.y < minPoint.y) {
@@ -26,16 +26,16 @@ public class UniformGrid2D<T>  {
 		this.numPointsX = numPointsX;
 		this.numPointsY = numPointsY;
 
-		grid = new T[numPointsX * numPointsY];
+		grid = new T[numPointsX, numPointsY];
 	}
 
 	public T this[int i, int j] {
 		get {
-			return grid[i + numPointsX * j];
+			return grid[i, j];
 		}
 
 		set {
-			grid[i + numPointsX * j] = value;
+			grid[i, j] = value;
 		}
 	}
 

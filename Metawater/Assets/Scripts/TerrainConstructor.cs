@@ -8,8 +8,7 @@ using static HelperFunctions;
 [ExecuteAlways]
 [RequireComponent(typeof(MeshFilter))]
 public class TerrainConstructor : MonoBehaviour {
-	// TODO: There might be something wrong with the gradients, they do not look completely right. Verify this somehow.
-	// TODO: Write custom inspector for terrain constructor.
+	// TODO: Write custom inspector for terrain constructor, with hidden debug toggles and an update button.
 
 	[SerializeField]
 	#pragma warning disable
@@ -130,13 +129,13 @@ public class TerrainConstructor : MonoBehaviour {
 				// Extract the scalars.
 				float[,] scalars = new float[3, 3];
 
-				for (int a = 0; a < 3; ++a) {
-					// Indicates whether to subtract 1, add 0 or add 1 to the i index.
-					int iTerm = a - 1;
-					for (int b = 0; b < 3; ++b) {
-						// Indicates whether to subtract 1, add 0 or add 1 to the k index.
-						int jTerm = b - 1;
-						
+				for (int b = 0; b < 3; ++b) {
+					// Indicates whether to subtract 1, add 0 or add 1 to the j index.
+					int jTerm = b - 1;
+					for (int a = 0; a < 3; ++a) {
+						// Indicates whether to subtract 1, add 0 or add 1 to the i index.
+						int iTerm = a - 1;
+
 						// Try to access the scalar at the index. If at an edge of the grid, exception is thrown and scalar set to NaN.
 						try {
 							scalars[a, b] = terrainGrid[i + iTerm, j + jTerm];
@@ -146,34 +145,21 @@ public class TerrainConstructor : MonoBehaviour {
 					}
 				}
 
-				// The x-kernel takes the form:
-				//  1, 0, -1]
-				//  2, 0, -2
-				// [1, 0, -1
-				int[,] xKernel = new int[,] { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
+				// Correct the NaN scalars.
+				CorrectScalars(scalars);
 
-				// The z-kernel takes the form:
-				//  -1, -2, -1]
-				//   0,  0,  0
-				// [ 1,  2,  1
-				int[,] zKernel = new int[,] { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
+				//// The x-kernel takes the form:
+				////  1, 0, -1
+				////  2, 0, -2
+				////  1, 0, -1
 
-				float partialX = 0.0f;
-				float partialZ = 0.0f;
+				//// The z-kernel takes the form:
+				////  -1, -2, -1
+				////   0,  0,  0
+				////   1,  2,  1
 
-				for (int a = 0; a < 3; ++a) {
-					for (int b = 0; b < 3; ++b) {
-						float scalar = scalars[a, b];
-						
-						// If scalar was not defined because it was out of range, set it to the scalar at the center of the kernel.
-						if (float.IsNaN(scalar)) {
-							scalar = scalars[1, 1];
-						}
-						
-						partialX += xKernel[a, b] * scalar;
-						partialZ += zKernel[a, b] * scalar;
-					}
-				}
+				float partialX = scalars[0, 0] - scalars[2, 0] + 2 * scalars[0, 1] - 2 * scalars[2, 1] + scalars[0, 2] - scalars[2, 2];
+				float partialZ = scalars[0, 0] + 2 * scalars[1, 0] + scalars[2, 0] - scalars[0, 2] - 2 * scalars[1, 2] - scalars[2, 2];
 
 				gradientGrid[i, j] = new Vector2(partialX, partialZ);
 			}
@@ -190,8 +176,6 @@ public class TerrainConstructor : MonoBehaviour {
 				// Set the vertex position as the offset from the origin, with y-value offset
 				// according to the terrain grid value and the desired scale.
 				vertices[j * terrainGrid.numPointsX + i] = HV2ToV3(Vector2.Scale(terrainGrid.GridPointCoordinates(i, j), inverseScale)) + transform.up * terrainGrid[i, j];
-
-				//Debug.Log("(i,j) = (" + i + "," + j + "), vertices[j * terrainGrid.numPointsX + i] = " + vertices[j * terrainGrid.numPointsX + i]);
 			}
 		}
 
@@ -223,5 +207,72 @@ public class TerrainConstructor : MonoBehaviour {
 		meshFilter.sharedMesh.triangles = triangles;
 		meshFilter.sharedMesh.RecalculateNormals();
 		meshCollider.sharedMesh = meshFilter.sharedMesh;
+	}
+
+	private void CorrectScalars(float[,] scalars) {
+		// Find all the NaN scalars.
+		// Construct a bit mask that has the layout (2,2)(2,1)(2,0)(1,2)(1,0)(0,2)(0,1)(0,0) where
+		// the ith bit is set if the scalar at the ith index tuple is NaN.
+		int bitMask = 0;
+		if (float.IsNaN(scalars[0, 0])) bitMask |= 1;
+		if (float.IsNaN(scalars[0, 1])) bitMask |= 1 << 1;
+		if (float.IsNaN(scalars[0, 2])) bitMask |= 1 << 2;
+		if (float.IsNaN(scalars[1, 0])) bitMask |= 1 << 3;
+		if (float.IsNaN(scalars[1, 2])) bitMask |= 1 << 4;
+		if (float.IsNaN(scalars[2, 0])) bitMask |= 1 << 5;
+		if (float.IsNaN(scalars[2, 1])) bitMask |= 1 << 6;
+		if (float.IsNaN(scalars[2, 2])) bitMask |= 1 << 7;
+
+		// Perform correction depending on the case indicated by the bit mask.
+		switch (bitMask) {
+			case 0x2f: // Bottom left corner.
+				scalars[0, 0] = scalars[1, 1];
+				scalars[0, 1] = scalars[1, 1];
+				scalars[0, 2] = scalars[1, 2];
+				scalars[1, 0] = scalars[1, 1];
+				scalars[2, 0] = scalars[2, 1];
+				break;
+			case 0x29: // Left edge.
+				scalars[0, 0] = scalars[0, 1];
+				scalars[1, 0] = scalars[1, 1];
+				scalars[2, 0] = scalars[2, 1];
+				break;
+			case 0xe9: // Top left corner.
+				scalars[0, 0] = scalars[0, 1];
+				scalars[1, 0] = scalars[1, 1];
+				scalars[2, 0] = scalars[1, 1];
+				scalars[2, 1] = scalars[1, 1];
+				scalars[2, 2] = scalars[1, 2];
+				break;
+			case 0xe0: // Top edge.
+				scalars[2, 0] = scalars[1, 0];
+				scalars[2, 1] = scalars[1, 1];
+				scalars[2, 2] = scalars[1, 2];
+				break;
+			case 0xf4: // Top right corner.
+				scalars[0, 2] = scalars[0, 1];
+				scalars[1, 2] = scalars[1, 1];
+				scalars[2, 0] = scalars[1, 0];
+				scalars[2, 1] = scalars[1, 1];
+				scalars[2, 2] = scalars[1, 1];
+				break;
+			case 0x94: // Right edge.
+				scalars[0, 2] = scalars[0, 1];
+				scalars[1, 2] = scalars[1, 1];
+				scalars[2, 2] = scalars[2, 1];
+				break;
+			case 0x97: // Bottom right corner.
+				scalars[0, 0] = scalars[1, 0];
+				scalars[0, 1] = scalars[1, 1];
+				scalars[0, 2] = scalars[1, 1];
+				scalars[1, 2] = scalars[1, 1];
+				scalars[2, 2] = scalars[2, 1];
+				break;
+			case 0x07: // Bottom edge.
+				scalars[0, 0] = scalars[1, 0];
+				scalars[0, 1] = scalars[1, 1];
+				scalars[0, 2] = scalars[1, 2];
+				break;
+		}
 	}
 }

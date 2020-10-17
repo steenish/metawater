@@ -26,8 +26,8 @@ public class TerrainConstructor : MonoBehaviour {
 #pragma warning restore
 
 	private Mesh mesh;
-	private UniformGrid2D<float> terrainGrid;
-	private UniformGrid2D<Vector2> gradientGrid;
+	private UniformGrid2DFloat terrainGrid;
+	private UniformGrid2DVector2 gradientGrid;
 	
 	void Awake() {
 		// Initialize and set mesh.
@@ -105,7 +105,7 @@ public class TerrainConstructor : MonoBehaviour {
 		Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) * transform.localScale.z + Vector3.right * (width - 1) * transform.localScale.x;
 		//Vector3 minPoint = transform.position - Vector3.forward * (height - 1) - Vector3.right * (width - 1);
 		//Vector3 maxPoint = transform.position + Vector3.forward * (height - 1) + Vector3.right * (width - 1);
-		terrainGrid = new UniformGrid2D<float>(V3ToHV2(minPoint), V3ToHV2(maxPoint), width, height); // X is width, Z is height.
+		terrainGrid = new UniformGrid2DFloat(V3ToHV2(minPoint), V3ToHV2(maxPoint), width, height); // X is width, Z is height.
 
 		for (int j = 0; j < terrainGrid.numPointsY; ++j) { // Rows.
 			for (int i = 0; i < terrainGrid.numPointsX; ++i) { // Columns.
@@ -122,7 +122,7 @@ public class TerrainConstructor : MonoBehaviour {
 		// Values for points that are out of range are treated as the center value.
 
 		// Initialize grid as a uniform grid of 2D vectors with the same size and number of points as the terrain grid.
-		gradientGrid = new UniformGrid2D<Vector2>(terrainGrid.minPoint, terrainGrid.maxPoint, terrainGrid.numPointsX, terrainGrid.numPointsY);
+		gradientGrid = new UniformGrid2DVector2(terrainGrid.minPoint, terrainGrid.maxPoint, terrainGrid.numPointsX, terrainGrid.numPointsY);
 
 		for (int j = 0; j < terrainGrid.numPointsY; ++j) {
 			for (int i = 0; i < terrainGrid.numPointsX; ++i) {
@@ -148,15 +148,15 @@ public class TerrainConstructor : MonoBehaviour {
 				// Correct the NaN scalars.
 				CorrectScalars(scalars);
 
-				//// The x-kernel takes the form:
-				////  1, 0, -1
-				////  2, 0, -2
-				////  1, 0, -1
+				// The x-kernel takes the form:
+				//  1, 0, -1
+				//  2, 0, -2
+				//  1, 0, -1
 
-				//// The z-kernel takes the form:
-				////  -1, -2, -1
-				////   0,  0,  0
-				////   1,  2,  1
+				// The z-kernel takes the form:
+				//  -1, -2, -1
+				//   0,  0,  0
+				//   1,  2,  1
 
 				float partialX = scalars[0, 0] - scalars[2, 0] + 2 * scalars[0, 1] - 2 * scalars[2, 1] + scalars[0, 2] - scalars[2, 2];
 				float partialZ = scalars[0, 0] + 2 * scalars[1, 0] + scalars[2, 0] - scalars[0, 2] - 2 * scalars[1, 2] - scalars[2, 2];

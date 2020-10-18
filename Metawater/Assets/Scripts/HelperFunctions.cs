@@ -39,4 +39,18 @@ public class HelperFunctions {
 	public static Vector3 HV2ToV3(Vector2 v) {
 		return new Vector3(v.x, 0.0f, v.y);
 	}
+
+	public static Vector2 IntegrateRK4(Vector2 position, float step, UniformGrid2DVector2 vectorField) {
+		Vector2 v1 = vectorField.Interpolate(position);
+		Vector2 v2 = vectorField.Interpolate(position + 0.5f * step * v1);
+		Vector2 v3 = vectorField.Interpolate(position + 0.5f * step * v2);
+		Vector2 v4 = vectorField.Interpolate(position + step * v3);
+		float inverse6 = 1 / 6;
+		float inverse3 = 1 / 3;
+		return position + step * (inverse6 * v1 + inverse3 * v2 + inverse3 * v3 + inverse6 * v4);
+	}
+
+	public static Vector3 IntegrateRK4(Vector3 position, float step, UniformGrid2DVector2 vectorField) {
+		return HV2ToV3(IntegrateRK4(V3ToHV2(position), step, vectorField));
+	}
 }

@@ -10,6 +10,12 @@ using static HelperFunctions;
 public class TerrainConstructor : MonoBehaviour {
 	// TODO: Write custom inspector for terrain constructor, with hidden debug toggles and an update button.
 
+	public bool gradientReady {
+		get {
+			return gradientGrid != null;
+		}
+	}
+
 	[SerializeField]
 	#pragma warning disable
 	private Texture2D heightmap;
@@ -26,9 +32,9 @@ public class TerrainConstructor : MonoBehaviour {
 #pragma warning restore
 
 	private Mesh mesh;
-	private UniformGrid2DFloat terrainGrid;
-	private UniformGrid2DVector2 gradientGrid;
-	
+	public UniformGrid2DFloat terrainGrid { get; private set; }
+	public UniformGrid2DVector2 gradientGrid { get; private set; }
+
 	void Awake() {
 		// Initialize and set mesh.
 		mesh = new Mesh();

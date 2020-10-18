@@ -21,23 +21,25 @@ public class River : MonoBehaviour {
 	[SerializeField]
 	private TerrainConstructor terrainConstructor;
 #pragma warning restore
-
-	private Mesh terrainMesh;
+	
     private List<Vector3> positions;
 
 	private void Start() {
-        terrainMesh = GameObject.Find("Terrain").GetComponent<MeshFilter>().sharedMesh;
         InvokeRepeating("CalculateRiver", 0.0f, updateInterval);
 
 		maximumRiverIterations = 0;
 	}
 
+	// TODO: River exploration needs to terminate in sinks.
+	// TODO: River exploration seems to get stuck where there is no sink.
 	private void CalculateRiver() {
 		if (!terrainConstructor.gradientReady) return;
 
         positions = new List<Vector3>();
 		positions.Add(source.position);
         int numRiverIterations = 0;
+
+		Debug.DrawLine(source.position, source.position + 100 * Vector3.down, Color.white, updateInterval);
 		
 		while (numRiverIterations < maximumRiverIterations) {
 			Vector3 nextPosition = IntegrateRK4(positions[positions.Count - 1], stepSize, terrainConstructor.gradientGrid);

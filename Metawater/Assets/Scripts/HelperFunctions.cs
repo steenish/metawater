@@ -45,8 +45,8 @@ public class HelperFunctions {
 		Vector2 v2 = vectorField.Interpolate(position + 0.5f * step * v1);
 		Vector2 v3 = vectorField.Interpolate(position + 0.5f * step * v2);
 		Vector2 v4 = vectorField.Interpolate(position + step * v3);
-		float inverse6 = 1 / 6;
-		float inverse3 = 1 / 3;
+		float inverse6 = 1.0f / 6.0f;
+		float inverse3 = 1.0f / 3.0f;
 		return position + step * (inverse6 * v1 + inverse3 * v2 + inverse3 * v3 + inverse6 * v4);
 	}
 

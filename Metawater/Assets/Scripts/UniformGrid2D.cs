@@ -65,7 +65,7 @@ public class UniformGrid2DFloat {
 		Vector2 t = new Vector2((position.x - leastPoint.x) / xLength, (position.y - leastPoint.y) / yLength);
 
 		// Perform interpolation.
-		return InterpolateBilinear(grid[i, j], grid[i + j, j], grid[i, j + 1], grid[i + 1, j + 1], t);
+		return InterpolateBilinear(grid[i, j], grid[i + 1, j], grid[i, j + 1], grid[i + 1, j + 1], t);
 	}
 
 	public float Interpolate(Vector3 position) {
@@ -151,7 +151,7 @@ public class UniformGrid2DVector2 {
 		Vector2 t = new Vector2((position.x - leastPoint.x) / xLength, (position.y - leastPoint.y) / yLength);
 
 		// Perform interpolation.
-		return InterpolateBilinear(grid[i, j], grid[i + j, j], grid[i, j + 1], grid[i + 1, j + 1], t);
+		return InterpolateBilinear(grid[i, j], grid[i + 1, j], grid[i, j + 1], grid[i + 1, j + 1], t);
 	}
 
 	public Vector2 Interpolate(Vector3 position) {

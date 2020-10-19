@@ -38,15 +38,22 @@ public class River : MonoBehaviour {
         positions = new List<Vector3>();
 		positions.Add(source.position);
         int numRiverIterations = 0;
-
-		Debug.DrawLine(source.position, source.position + 100 * Vector3.down, Color.white, updateInterval);
 		
 		while (numRiverIterations < maximumRiverIterations) {
 			Vector3 nextPosition = IntegrateRK4(positions[positions.Count - 1], stepSize, terrainConstructor.gradientGrid);
 			nextPosition.y = source.position.y;
 			positions.Add(nextPosition);
 
+			Debug.Log((positions[positions.Count - 1] - positions[positions.Count - 2]).sqrMagnitude);
+
 			numRiverIterations++;
+		}
+
+		for (int i = 0; i < positions.Count; ++i) {
+			Vector3 position = positions[i];
+			float newHeight = terrainConstructor.terrainGrid.Interpolate(position);
+			position.y = newHeight * terrainConstructor.transform.localScale.y;
+			positions[i] = position;
 		}
 
 		line.positionCount = positions.Count;

@@ -55,8 +55,11 @@ public class UniformGrid2DFloat {
 
 	public float Interpolate(Vector2 position) {
 		// Find indices of smallest point in interpolation cell.
-		int i = (int) Mathf.Floor((position.x - minPoint.x) / xLength);
-		int j = (int) Mathf.Floor((position.y - minPoint.y) / yLength);
+		int i = Mathf.Clamp((int) Mathf.Floor((position.x - minPoint.x) / xLength), 0, numPointsX - 1);
+		int j = Mathf.Clamp((int) Mathf.Floor((position.y - minPoint.y) / yLength), 0, numPointsY - 1);
+
+		int nextI = Mathf.Clamp(i + 1, 0, numPointsX - 1);
+		int nextJ = Mathf.Clamp(j + 1, 0, numPointsY - 1);
 
 		// Find coordinates of the smallest point.
 		Vector2 leastPoint = GridPointCoordinates(i, j);
@@ -65,7 +68,7 @@ public class UniformGrid2DFloat {
 		Vector2 t = new Vector2((position.x - leastPoint.x) / xLength, (position.y - leastPoint.y) / yLength);
 
 		// Perform interpolation.
-		return InterpolateBilinear(grid[i, j], grid[i + 1, j], grid[i, j + 1], grid[i + 1, j + 1], t);
+		return InterpolateBilinear(grid[i, j], grid[nextI, j], grid[i, nextJ], grid[nextI, nextJ], t);
 	}
 
 	public float Interpolate(Vector3 position) {
@@ -141,8 +144,11 @@ public class UniformGrid2DVector2 {
 
 	public Vector2 Interpolate(Vector2 position) {
 		// Find indices of smallest point in interpolation cell.
-		int i = (int) Mathf.Floor((position.x - minPoint.x) / xLength);
-		int j = (int) Mathf.Floor((position.y - minPoint.y) / yLength);
+		int i = Mathf.Clamp((int) Mathf.Floor((position.x - minPoint.x) / xLength), 0, numPointsX - 1);
+		int j = Mathf.Clamp((int) Mathf.Floor((position.y - minPoint.y) / yLength), 0, numPointsY - 1);
+
+		int nextI = Mathf.Clamp(i + 1, 0, numPointsX - 1);
+		int nextJ = Mathf.Clamp(j + 1, 0, numPointsY - 1);
 
 		// Find coordinates of the smallest point.
 		Vector2 leastPoint = GridPointCoordinates(i, j);
@@ -151,7 +157,7 @@ public class UniformGrid2DVector2 {
 		Vector2 t = new Vector2((position.x - leastPoint.x) / xLength, (position.y - leastPoint.y) / yLength);
 
 		// Perform interpolation.
-		return InterpolateBilinear(grid[i, j], grid[i + 1, j], grid[i, j + 1], grid[i + 1, j + 1], t);
+		return InterpolateBilinear(grid[i, j], grid[nextI, j], grid[i, nextJ], grid[nextI, nextJ], t);
 	}
 
 	public Vector2 Interpolate(Vector3 position) {

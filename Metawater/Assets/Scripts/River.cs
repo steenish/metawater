@@ -19,7 +19,11 @@ public class River : MonoBehaviour {
 	[SerializeField]
 	private float stepSize;
 	[SerializeField]
+	private float sqrVelocityThreshold;
+	[SerializeField]
 	private TerrainConstructor terrainConstructor;
+	[SerializeField]
+	private Bounds terrainBounds;
 #pragma warning restore
 	
     private List<Vector3> positions;
@@ -27,24 +31,25 @@ public class River : MonoBehaviour {
 	private void Start() {
         InvokeRepeating("CalculateRiver", 0.0f, updateInterval);
 
-		maximumRiverIterations = 0;
+		terrainBounds = terrainConstructor.GetComponent<MeshFilter>().sharedMesh.bounds;
 	}
 
-	// TODO: River exploration needs to terminate in sinks.
-	// TODO: River exploration seems to get stuck where there is no sink.
 	private void CalculateRiver() {
 		if (!terrainConstructor.gradientReady) return;
 
         positions = new List<Vector3>();
 		positions.Add(source.position);
         int numRiverIterations = 0;
+		float deltaSqrVelocity = Mathf.Infinity;
 		
-		while (numRiverIterations < maximumRiverIterations) {
+		while (numRiverIterations < maximumRiverIterations &&
+			   deltaSqrVelocity > sqrVelocityThreshold &&
+			   InHorizontalBounds(positions[positions.Count - 1], terrainBounds)) {
 			Vector3 nextPosition = IntegrateRK4(positions[positions.Count - 1], stepSize, terrainConstructor.gradientGrid);
 			nextPosition.y = source.position.y;
 			positions.Add(nextPosition);
 
-			Debug.Log((positions[positions.Count - 1] - positions[positions.Count - 2]).sqrMagnitude);
+			deltaSqrVelocity = (positions[positions.Count - 1] - positions[positions.Count - 2]).sqrMagnitude;
 
 			numRiverIterations++;
 		}
@@ -59,13 +64,13 @@ public class River : MonoBehaviour {
 		line.positionCount = positions.Count;
 		line.SetPositions(positions.ToArray());
 
-		maximumRiverIterations++;
-
         // Draw debug lines.
         if (drawDebugLines) {
             for (int i = 0; i < positions.Count - 1; ++i) {
                 Debug.DrawLine(positions[i], positions[i + 1], Color.blue, updateInterval);
             }
         }
+
+		Debug.Log(numRiverIterations);
     }
 }

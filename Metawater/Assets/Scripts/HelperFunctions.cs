@@ -53,4 +53,8 @@ public class HelperFunctions {
 	public static Vector3 IntegrateRK4(Vector3 position, float step, UniformGrid2DVector2 vectorField) {
 		return HV2ToV3(IntegrateRK4(V3ToHV2(position), step, vectorField));
 	}
+
+	public static bool InHorizontalBounds(Vector3 point, Bounds bounds) {
+		return point.x > bounds.min.x && point.x < bounds.max.x && point.z > bounds.min.z && point.z < bounds.max.z;
+	}
 }

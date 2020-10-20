@@ -10,12 +10,12 @@ public class UniformGrid2DFloat {
 	public int numPointsY { get; private set; }
 	public Vector2 minPoint { get; private set; }
 	public Vector2 maxPoint { get; private set; }
-	
+	public Vector3 minPointV3 { get; private set; }
+	public Vector3 maxPointV3 { get; private set; }
+	public float xLength { get; private set; }
+	public float yLength { get; private set; }
+
 	private float[,] grid;
-	private float xLength;
-	private float yLength;
-	private Vector3 minPointV3;
-	private Vector3 maxPointV3;
 
 	public UniformGrid2DFloat(Vector2 minPoint, Vector2 maxPoint, int numPointsX, int numPointsY) {
 		if (maxPoint.x < minPoint.x || maxPoint.y < minPoint.y) {
@@ -99,12 +99,12 @@ public class UniformGrid2DVector2 {
 	public int numPointsY { get; private set; }
 	public Vector2 minPoint { get; private set; }
 	public Vector2 maxPoint { get; private set; }
+	public Vector3 minPointV3 { get; private set; }
+	public Vector3 maxPointV3 { get; private set; }
+	public float xLength { get; private set; }
+	public float yLength { get; private set; }
 
 	private Vector2[,] grid;
-	private float xLength;
-	private float yLength;
-	private Vector3 minPointV3;
-	private Vector3 maxPointV3;
 
 	public UniformGrid2DVector2(Vector2 minPoint, Vector2 maxPoint, int numPointsX, int numPointsY) {
 		if (maxPoint.x < minPoint.x || maxPoint.y < minPoint.y) {

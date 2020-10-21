@@ -8,7 +8,9 @@ public class River : MonoBehaviour {
 #pragma warning disable
 	[SerializeField]
 	private LineRenderer line;
-    [SerializeField]
+	[SerializeField]
+	private TerrainConstructor terrainConstructor;
+	[SerializeField]
     private Transform source;
     [SerializeField]
     private bool drawDebugLines;
@@ -21,17 +23,16 @@ public class River : MonoBehaviour {
 	[SerializeField]
 	private float sqrVelocityThreshold;
 	[SerializeField]
-	private TerrainConstructor terrainConstructor;
+	private float lakeStepSize;
 	[SerializeField]
 	private int numLakeDirections;
-	[SerializeField]
-	private float lakeExplorationLimit;
 #pragma warning restore
-	
-    private List<Vector3> positions;
+
+	private List<Vector3> positions;
 	private Bounds terrainBounds;
 	private float lakeAngle;
-	private float lakeStepSize;
+	private float sourceHeight;
+	private float lakeExplorationLimit;
 
 	private void Start() {
         InvokeRepeating("CalculateRiver", 0.0f, updateInterval);
@@ -39,12 +40,21 @@ public class River : MonoBehaviour {
 		terrainBounds = terrainConstructor.GetComponent<MeshFilter>().sharedMesh.bounds;
 		lakeAngle = 360.0f / numLakeDirections;
 
+		sourceHeight = terrainConstructor.terrainGrid.Interpolate(source.position);
+
+		float lakeExplorationLimit = 2 * Mathf.Max(terrainBounds.size.z, terrainBounds.size.x);
+
+		OnValidate();
+	}
+
+	private void OnValidate() {
 		// The lake step size is set to the minimum meaningful distance in the terrain grid.
-		lakeStepSize = Mathf.Min(terrainConstructor.terrainGrid.xLength, terrainConstructor.terrainGrid.yLength);
+		lakeStepSize = Mathf.Clamp(lakeStepSize, 0.01f, Mathf.Min(terrainConstructor.terrainGrid.xLength, terrainConstructor.terrainGrid.yLength));
 	}
 
 	// TODO: Instead of using the current sampling point for lake overflow, find the actual point for the maximum.
 	// TODO: Prevent river hill climbing during lake exploration.
+	// TODO: Add check to not go upwards in river exploration.
 	// TODO: Test this a lot.
 	// TEST NOTES:
 	// - the river always seems to head straight in positive z direction, sometimes turning to positive x direction.
@@ -66,7 +76,7 @@ public class River : MonoBehaviour {
 			if (deltaSqrVelocity > sqrVelocityThreshold) {
 				// Integrate in the gradient field from the current position to find the next position.
 				Vector3 nextPosition = IntegrateRK4(positions[positions.Count - 1], stepSize, terrainConstructor.gradientGrid);
-				nextPosition.y = source.position.y; // MARKER 1
+				nextPosition.y = source.position.y;
 				positions.Add(nextPosition);
 
 				deltaSqrVelocity = (positions[positions.Count - 1] - positions[positions.Count - 2]).sqrMagnitude;
@@ -76,9 +86,9 @@ public class River : MonoBehaviour {
 				// Get the point on the river where the lake exploration starts.
 				Vector3 startPoint = positions[positions.Count - 1];
 
-				// Draw line from bottom of lake to possible top.
+				// Draw line from bottom of lake to top.
 				if (drawDebugLines) {
-					Debug.DrawLine(startPoint, startPoint, Color.white, updateInterval);
+					Debug.DrawLine(startPoint, new Vector3(startPoint.x, terrainConstructor.terrainGrid.Interpolate(startPoint) * terrainConstructor.transform.localScale.y, startPoint.z), Color.red, updateInterval);
 				}
 
 				// A list for saving the found candidates for the overflow point.
@@ -98,7 +108,7 @@ public class River : MonoBehaviour {
 					
 					// Set up vectors for the two last samples of the terrain grid.
 					float previousHeight = 0.0f; // The sample in the iteration before the current.
-					float currentHeight = 0.0f;  // The sample in the current iteration.
+					float currentHeight = terrainConstructor.terrainGrid.Interpolate(startPoint);  // The sample in the current iteration.
 
 					float distanceAlongDirection = 0.0f;
 					// Explore terrain samples along the exploration directions.
@@ -127,11 +137,12 @@ public class River : MonoBehaviour {
 				} // The for loop terminating is not a guarantee for having found a single overflow point.
 				
 				// Find the lowest point in the list.
+				// Initialize the point as 
 				Vector3 overflowPoint = Vector3.up * Mathf.Infinity;
 
 				// Select the lowest point found over all directions as the overflow point.
 				foreach (Vector3 candidate in overflowPointCandidates) {
-					if (candidate.y < overflowPoint.y) {
+					if (candidate.y < overflowPoint.y && terrainConstructor.terrainGrid.Interpolate(candidate) < sourceHeight) {
 						overflowPoint = candidate;
 					}
 				}
